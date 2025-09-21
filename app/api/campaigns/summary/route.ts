@@ -37,11 +37,33 @@ export async function POST(request: NextRequest) {
     // Initialize API client
     const api = new AffiliateNetworkAPI(defaultNetworkConfig)
 
-    // Format dates for API
-    const apiStartDate = new Date(startDate).toISOString().split('T')[0]
-    const apiEndDate = new Date(endDate).toISOString().split('T')[0]
+    // Format dates for API with explicit Eastern Time bounds
+    const startDateOnly = startDate.split('T')[0] // Extract YYYY-MM-DD from 2025-09-01
+    const endDateOnly = endDate.split('T')[0] // Extract YYYY-MM-DD from 2025-09-21
+    
+    // Add explicit time bounds for Eastern Time
+    const apiStartDate = `${startDateOnly} 00:00:00` // Start of day ET
+    const apiEndDate = `${endDateOnly} 23:59:59` // End of day ET
+    
+    console.log('📅 [SUMMARY] Using Eastern Time bounds:', {
+      startDateOnly,
+      endDateOnly,
+      apiStartDate,
+      apiEndDate
+    })
 
     console.log('🌐 [SUMMARY] Fetching data from Daily Summary API (matches Affluent dashboard)...')
+    
+    // Calculate date range first
+    const startDateObj = new Date(startDate)
+    const endDateObj = new Date(endDate)
+    const daysDiff = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 3600 * 24))
+    
+    console.log('📊 [SUMMARY] Date range analysis:', {
+      startDate: apiStartDate,
+      endDate: apiEndDate,
+      daysDiff: daysDiff
+    })
     
     // Initialize tracking variables
     let totalRevenue = 0
@@ -151,16 +173,7 @@ export async function POST(request: NextRequest) {
     const epc = totalClicks > 0 ? totalRevenue / totalClicks : 0
     const roas = totalRevenue > 0 ? (totalRevenue / Math.max(totalRevenue * 0.1, 1)) : 0 // Assuming 10% cost
 
-    // Determine appropriate time granularity based on date range
-    const startDateObj = new Date(startDate)
-    const endDateObj = new Date(endDate)
-    const daysDiff = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 3600 * 24))
-    
-    console.log('📊 [SUMMARY] Date range analysis:', {
-      startDate: apiStartDate,
-      endDate: apiEndDate,
-      daysDiff: daysDiff
-    })
+    // Date range already calculated above
 
     let trends = []
     
@@ -191,22 +204,9 @@ export async function POST(request: NextRequest) {
         if (dailySummaryResponse.success && dailySummaryResponse.data) {
           console.log('📊 [SUMMARY] Processing', dailySummaryResponse.data.length, 'days from Daily Summary')
           
-          // Apply filters if specified
-          let filteredDays = dailySummaryResponse.data
-          
-          if (campaigns && campaigns.length > 0) {
-            // Filter by campaigns if the API supports it
-            console.log('📊 [SUMMARY] Campaign filtering applied')
-          }
-
-          if (subIds && subIds.length > 0) {
-            // Filter by subIds if the API supports it  
-            console.log('📊 [SUMMARY] SubId filtering applied')
-          }
-
-          // Process each day from the API response
-          filteredDays.forEach((dayData: any) => {
-            const dayKey = dayData.date || dayData.day || dayData.time
+          // Simple: just use the API data as-is
+          dailySummaryResponse.data.forEach((dayData: any) => {
+            const dayKey = (dayData.date || dayData.day || dayData.time).split('T')[0]
             trends.push({
               hour: dayKey,
               time: dayKey,

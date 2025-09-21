@@ -16,6 +16,18 @@ interface DashboardContentProps {
   user: User
 }
 
+// Helper function to format date as YYYY-MM-DD in local timezone
+const formatDateForAPI = (date: Date, isEndDate: boolean = false): string => {
+  // Use local timezone to get the actual date components
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  
+  // For API calls, we want to send the date without timezone conversion
+  // Just send as YYYY-MM-DD format and let the API handle it
+  return `${year}-${month}-${day}`
+}
+
 const getDefaultFilters = (): FilterState => {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -69,14 +81,26 @@ export function DashboardContent({ user }: DashboardContentProps) {
 
   const fetchData = async () => {
     setIsLoading(true)
+    
+    const formattedStartDate = formatDateForAPI(filters.dateRange.from)
+    const formattedEndDate = formatDateForAPI(filters.dateRange.to, true)
+    
+    console.log('📅 [FRONTEND] Date debugging:', {
+      originalFrom: filters.dateRange.from.toString(),
+      originalTo: filters.dateRange.to.toString(),
+      formattedStartDate,
+      formattedEndDate,
+      currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    })
+    
     try {
       // Fetch summary data
       const summaryResponse = await fetch('/api/campaigns/summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startDate: filters.dateRange.from.toISOString(),
-          endDate: filters.dateRange.to.toISOString(),
+          startDate: formattedStartDate,
+          endDate: formattedEndDate,
           networks: filters.networks,
           offers: filters.offers,
           subIds: filters.subIds
@@ -94,8 +118,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startDate: filters.dateRange.from.toISOString(),
-          endDate: filters.dateRange.to.toISOString(),
+          startDate: formattedStartDate,
+          endDate: formattedEndDate,
           networks: filters.networks,
           offers: filters.offers,
           subIds: filters.subIds,
@@ -113,8 +137,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startDate: filters.dateRange.from.toISOString(),
-          endDate: filters.dateRange.to.toISOString(),
+          startDate: formattedStartDate,
+          endDate: formattedEndDate,
           networks: filters.networks,
           offers: filters.offers,
           subIds: filters.subIds,
