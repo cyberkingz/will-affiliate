@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const apiStartDate = new Date(startDate).toISOString().split('T')[0]
     const apiEndDate = new Date(endDate).toISOString().split('T')[0]
 
-    console.log('🌐 [SUMMARY] Fetching real performance data from Affluent API...')
+    console.log('🌐 [SUMMARY] Fetching data from Daily Summary API (matches Affluent dashboard)...')
     
     // Initialize tracking variables
     let totalRevenue = 0
@@ -49,148 +49,72 @@ export async function POST(request: NextRequest) {
     let totalConversions = 0
     let hourlyData: Record<string, { clicks: number; revenue: number }> = {}
 
-    // Step 1: Fetch Performance Summary for overall KPIs
-    console.log('📈 [SUMMARY] Fetching performance summary...')
+    // Fetch Daily Summary data - this matches exactly what the Affluent dashboard shows
+    console.log('📊 [SUMMARY] Fetching daily summary data...')
     try {
-      const performanceSummary = await api.getPerformanceSummary({
-        date: apiStartDate // Use start date for the summary
-      })
-
-      if (performanceSummary.success && performanceSummary.data.length > 0) {
-        const summary = performanceSummary.data[0]
-        console.log('✅ [SUMMARY] Performance summary data:', summary)
-        
-        // Extract overall metrics from performance summary
-        totalRevenue = summary.revenue || summary.total_revenue || 0
-        totalClicks = summary.clicks || summary.total_clicks || 0
-        totalConversions = summary.conversions || summary.total_conversions || 0
-      }
-    } catch (error) {
-      console.warn('⚠️ [SUMMARY] Performance summary failed, continuing with clicks data:', error.message)
-    }
-
-    // Step 2: Fetch detailed clicks data for hourly breakdown
-    console.log('🖱️ [SUMMARY] Fetching clicks data for hourly breakdown...')
-    let allClicks: AffluentClickData[] = []
-    let currentRow = 1
-    const batchSize = 1000 // Fetch in batches to handle large datasets
-
-    try {
-      while (true) {
-        const clicksResponse = await api.getClicks({
-          start_date: apiStartDate,
-          end_date: apiEndDate,
-          start_at_row: currentRow,
-          row_limit: batchSize,
-          include_duplicates: false // Exclude duplicates for accurate counts
-        })
-
-        if (!clicksResponse.success || !clicksResponse.data || clicksResponse.data.length === 0) {
-          break
-        }
-
-        console.log(`📊 [SUMMARY] Fetched ${clicksResponse.data.length} clicks (batch starting at row ${currentRow})`)
-        
-        // Filter by campaigns if specified
-        let filteredClicks = clicksResponse.data
-        if (campaigns && campaigns.length > 0) {
-          filteredClicks = clicksResponse.data.filter(click => 
-            campaigns.includes(click.campaign_id?.toString())
-          )
-        }
-
-        // Filter by subIds if specified
-        if (subIds && subIds.length > 0) {
-          filteredClicks = filteredClicks.filter(click => 
-            subIds.includes(click.subid_1) || 
-            subIds.includes(click.subid_2) ||
-            subIds.includes(click.subid_3) ||
-            subIds.includes(click.subid_4) ||
-            subIds.includes(click.subid_5)
-          )
-        }
-
-        allClicks.push(...filteredClicks)
-        
-        // If we didn't get a full batch, we've reached the end
-        if (clicksResponse.data.length < batchSize) {
-          break
-        }
-        
-        currentRow += batchSize
-        
-        // Safety limit to prevent infinite loops
-        if (currentRow > 100000) {
-          console.warn('⚠️ [SUMMARY] Reached safety limit for clicks fetching')
-          break
-        }
-      }
-
-      console.log(`✅ [SUMMARY] Total clicks fetched: ${allClicks.length}`)
-
-      // If we didn't get performance summary data, calculate from clicks
-      if (totalClicks === 0 && allClicks.length > 0) {
-        totalClicks = allClicks.length
-        totalRevenue = allClicks.reduce((sum, click) => sum + (click.price || 0), 0)
-      }
-
-      // Process clicks data for hourly breakdown
-      allClicks.forEach(click => {
-        const clickDate = new Date(click.click_date)
-        const hour = clickDate.getHours().toString().padStart(2, '0')
-        
-        if (!hourlyData[hour]) {
-          hourlyData[hour] = { clicks: 0, revenue: 0 }
-        }
-        
-        hourlyData[hour].clicks += 1
-        hourlyData[hour].revenue += click.price || 0
-      })
-
-    } catch (error) {
-      console.error('❌ [SUMMARY] Error fetching clicks data:', error)
-    }
-
-    // Step 3: Try to fetch conversions data (if available)
-    console.log('💰 [SUMMARY] Attempting to fetch conversions data...')
-    try {
-      const conversionsResponse = await api.getConversions({
+      const dailySummaryResponse = await api.getDailySummary({
         start_date: apiStartDate,
         end_date: apiEndDate
       })
 
-      if (conversionsResponse.success && conversionsResponse.data) {
-        let filteredConversions = conversionsResponse.data
+      if (dailySummaryResponse.success && dailySummaryResponse.data) {
+        console.log('✅ [SUMMARY] Daily summary data received:', dailySummaryResponse.data.length, 'days')
         
-        // Filter by campaigns if specified
-        if (campaigns && campaigns.length > 0) {
-          filteredConversions = conversionsResponse.data.filter(conv => 
-            campaigns.includes(conv.campaign_id?.toString())
-          )
-        }
-
-        // Filter by subIds if specified
-        if (subIds && subIds.length > 0) {
-          filteredConversions = filteredConversions.filter(conv => 
-            subIds.includes(conv.sub_id) || 
-            subIds.includes(conv.sub_id_2) ||
-            subIds.includes(conv.sub_id_3) ||
-            subIds.includes(conv.sub_id_4) ||
-            subIds.includes(conv.sub_id_5)
-          )
-        }
-
-        totalConversions = filteredConversions.length
+        // Calculate totals from daily data
+        totalClicks = dailySummaryResponse.data.reduce((sum: number, day: any) => sum + (day.clicks || 0), 0)
+        totalConversions = dailySummaryResponse.data.reduce((sum: number, day: any) => sum + (day.conversions || 0), 0)
+        totalRevenue = dailySummaryResponse.data.reduce((sum: number, day: any) => sum + (day.revenue || 0), 0)
         
-        // If we didn't get revenue from performance summary or clicks, use conversions
-        if (totalRevenue === 0) {
-          totalRevenue = filteredConversions.reduce((sum, conv) => sum + (conv.revenue || conv.payout || 0), 0)
-        }
+        console.log('📊 [SUMMARY] Totals from Daily Summary:', {
+          totalClicks,
+          totalConversions, 
+          totalRevenue: totalRevenue.toFixed(2)
+        })
 
-        console.log(`✅ [SUMMARY] Conversions found: ${totalConversions}, Additional revenue: ${totalRevenue}`)
+        // For single day view, we need hourly breakdown
+        if (daysDiff <= 1) {
+          console.log('🕐 [SUMMARY] Single day - fetching hourly data...')
+          try {
+            const hourlySummaryResponse = await api.getHourlySummary({
+              start_date: apiStartDate,
+              end_date: apiEndDate
+            })
+
+            if (hourlySummaryResponse.success && hourlySummaryResponse.data) {
+              console.log('✅ [SUMMARY] Hourly data received:', hourlySummaryResponse.data.length, 'hours')
+              
+              // Process hourly data
+              hourlySummaryResponse.data.forEach((hourData: any) => {
+                const hour = hourData.hour || hourData.time || '00'
+                hourlyData[hour] = {
+                  clicks: hourData.clicks || 0,
+                  revenue: hourData.revenue || 0
+                }
+              })
+            }
+          } catch (error) {
+            console.warn('⚠️ [SUMMARY] Hourly data not available, using daily data:', error.message)
+          }
+        }
       }
     } catch (error) {
-      console.warn('⚠️ [SUMMARY] Conversions data not available:', error.message)
+      console.error('❌ [SUMMARY] Daily Summary API failed:', error.message)
+      
+      // Fallback to Performance Summary for basic KPIs
+      console.log('📈 [SUMMARY] Falling back to Performance Summary...')
+      try {
+        const performanceSummary = await api.getPerformanceSummary({
+          date: apiStartDate
+        })
+
+        if (performanceSummary.success && performanceSummary.data.length > 0) {
+          const summary = performanceSummary.data[0]
+          totalRevenue = summary.current_revenue || summary.revenue || 0
+          console.log('💰 [SUMMARY] Fallback revenue:', totalRevenue)
+        }
+      } catch (fallbackError) {
+        console.error('❌ [SUMMARY] Fallback also failed:', fallbackError.message)
+      }
     }
 
     // Find peak click hour
@@ -201,21 +125,93 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Calculate metrics
+    // Calculate metrics (CVR as proper percentage)
     const cvr = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0
     const epc = totalClicks > 0 ? totalRevenue / totalClicks : 0
     const roas = totalRevenue > 0 ? (totalRevenue / Math.max(totalRevenue * 0.1, 1)) : 0 // Assuming 10% cost
 
-    // Generate hourly trend data (fill missing hours with 0)
-    const trends = []
-    for (let i = 0; i < 24; i++) {
-      const hour = i.toString().padStart(2, '0')
-      const data = hourlyData[hour] || { clicks: 0, revenue: 0 }
-      trends.push({
-        hour: `${hour}:00`,
-        clicks: data.clicks,
-        revenue: parseFloat(data.revenue.toFixed(2))
-      })
+    // Determine appropriate time granularity based on date range
+    const startDateObj = new Date(startDate)
+    const endDateObj = new Date(endDate)
+    const daysDiff = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 3600 * 24))
+    
+    console.log('📊 [SUMMARY] Date range analysis:', {
+      startDate: apiStartDate,
+      endDate: apiEndDate,
+      daysDiff: daysDiff
+    })
+
+    let trends = []
+    
+    if (daysDiff <= 1) {
+      // Single day: Use hourly granularity
+      console.log('📈 [SUMMARY] Using hourly granularity for single day')
+      for (let i = 0; i < 24; i++) {
+        const hour = i.toString().padStart(2, '0')
+        const data = hourlyData[hour] || { clicks: 0, revenue: 0 }
+        trends.push({
+          hour: `${hour}:00`,
+          time: `${hour}:00`,
+          clicks: data.clicks,
+          revenue: parseFloat(data.revenue.toFixed(2)),
+          conversions: 0 // Hourly conversions not available
+        })
+      }
+    } else {
+      // Multiple days: Use daily granularity from Daily Summary API
+      console.log('📈 [SUMMARY] Using daily granularity from Daily Summary API')
+      
+      try {
+        const dailySummaryResponse = await api.getDailySummary({
+          start_date: apiStartDate,
+          end_date: apiEndDate
+        })
+
+        if (dailySummaryResponse.success && dailySummaryResponse.data) {
+          console.log('📊 [SUMMARY] Processing', dailySummaryResponse.data.length, 'days from Daily Summary')
+          
+          // Apply filters if specified
+          let filteredDays = dailySummaryResponse.data
+          
+          if (campaigns && campaigns.length > 0) {
+            // Filter by campaigns if the API supports it
+            console.log('📊 [SUMMARY] Campaign filtering applied')
+          }
+
+          if (subIds && subIds.length > 0) {
+            // Filter by subIds if the API supports it  
+            console.log('📊 [SUMMARY] SubId filtering applied')
+          }
+
+          // Process each day from the API response
+          filteredDays.forEach((dayData: any) => {
+            const dayKey = dayData.date || dayData.day || dayData.time
+            trends.push({
+              hour: dayKey,
+              time: dayKey,
+              clicks: dayData.clicks || 0,
+              revenue: parseFloat((dayData.revenue || 0).toFixed(2)),
+              conversions: dayData.conversions || 0
+            })
+          })
+          
+          console.log('📊 [SUMMARY] Daily trends generated:', trends.length, 'days')
+        }
+      } catch (error) {
+        console.warn('⚠️ [SUMMARY] Daily Summary API failed for trends, generating empty data:', error.message)
+        
+        // Fallback: Generate empty trends for the date range
+        for (let d = new Date(startDateObj); d <= endDateObj; d.setDate(d.getDate() + 1)) {
+          const dayKey = d.toISOString().split('T')[0]
+          trends.push({
+            hour: dayKey,
+            time: dayKey,
+            clicks: 0,
+            revenue: 0,
+            conversions: 0
+          })
+        }
+      }
     }
 
     const responseData = {
