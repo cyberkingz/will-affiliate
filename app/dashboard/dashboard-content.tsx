@@ -16,15 +16,21 @@ interface DashboardContentProps {
   user: User
 }
 
-const getDefaultFilters = (): FilterState => ({
-  dateRange: {
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-    to: new Date()
-  },
-  networks: [],
-  campaigns: [],
-  subIds: []
-})
+const getDefaultFilters = (): FilterState => {
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  startOfMonth.setHours(0, 0, 0, 0)
+  
+  return {
+    dateRange: {
+      from: startOfMonth, // First day of current month
+      to: now
+    },
+    networks: ['affluent'], // Default to Affluent network
+    campaigns: [], // Empty means ALL campaigns
+    subIds: [] // Empty means ALL sub IDs
+  }
+}
 
 export function DashboardContent({ user }: DashboardContentProps) {
   const [filters, setFilters] = useState<FilterState>(getDefaultFilters)
@@ -122,9 +128,15 @@ export function DashboardContent({ user }: DashboardContentProps) {
       }
 
       // Fetch filter options
+      console.log('🎯 [FRONTEND] Fetching filter options from /api/campaigns/filters...')
       const filtersResponse = await fetch('/api/campaigns/filters')
+      console.log('📥 [FRONTEND] Filters response status:', filtersResponse.status)
+      
       if (filtersResponse.ok) {
         const filtersData = await filtersResponse.json()
+        console.log('📋 [FRONTEND] Filters data received:', filtersData)
+        console.log('🎯 [FRONTEND] Available campaigns:', filtersData.campaigns)
+        
         setAvailableNetworks(filtersData.networks)
         setAvailableCampaigns(filtersData.campaigns)
         setAvailableSubIds(filtersData.subIds)
@@ -133,6 +145,9 @@ export function DashboardContent({ user }: DashboardContentProps) {
         setAvailableOfferNames(['Playful Rewards - RevShare'])
         setAvailableTableSubIds(['aug301', ''])
         setAvailableTableSubIds2(['aug301', ''])
+      } else {
+        const errorText = await filtersResponse.text()
+        console.error('❌ [FRONTEND] Failed to fetch filters:', filtersResponse.status, errorText)
       }
 
       // Fetch sync status

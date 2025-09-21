@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
+import { AffiliateNetworkAPI, defaultNetworkConfig } from '@/lib/api/affiliate-network'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +16,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { startDate, endDate, networks, campaigns, subIds } = body
 
+    console.log('📊 [SUMMARY] Request params:', { startDate, endDate, networks, campaigns, subIds })
+
     // Check cache first
     const cacheKey = createCacheKey('summary', { 
       userId: user.id, 
@@ -27,200 +30,132 @@ export async function POST(request: NextRequest) {
     
     const cachedData = apiCache.get(cacheKey)
     if (cachedData) {
+      console.log('✅ [SUMMARY] Returning cached data')
       return NextResponse.json(cachedData)
     }
 
-    // Get user's accessible networks
-    const { data: userNetworks } = await supabase
-      .rpc('get_user_accessible_networks', { target_user_id: user.id })
+    // Initialize API client
+    const api = new AffiliateNetworkAPI(defaultNetworkConfig)
 
-    const accessibleNetworkIds = userNetworks?.map(n => n.network_id) || []
+    // Format dates for API
+    const apiStartDate = new Date(startDate).toISOString().split('T')[0]
+    const apiEndDate = new Date(endDate).toISOString().split('T')[0]
+
+    console.log('🌐 [SUMMARY] Fetching campaign summary from API...')
     
-    if (accessibleNetworkIds.length === 0) {
-      return NextResponse.json({
-        kpis: {
-          revenue: { value: 0, change: 0, period: '30d' },
-          clicks: { value: 0, change: 0 },
-          conversions: { value: 0, change: 0 },
-          cvr: { value: 0, change: 0 },
-          epc: { value: 0, change: 0 },
-          roas: { value: 0, change: 0 }
-        },
-        trends: []
+    // Build API parameters
+    const apiParams: any = {
+      start_date: apiStartDate,
+      end_date: apiEndDate
+    }
+
+    // Only add campaign filter if specific campaigns selected
+    // Empty array means ALL campaigns
+    if (campaigns && campaigns.length > 0) {
+      // Affluent API doesn't support multiple campaigns in one call
+      // We'll need to aggregate data from multiple calls
+      console.log('🎯 [SUMMARY] Filtering for specific campaigns:', campaigns)
+    }
+
+    // Fetch campaign summary data
+    const summaryResponse = await api.getCampaignSummary(apiParams)
+    
+    console.log('📥 [SUMMARY] API Response:', {
+      success: summaryResponse.success,
+      dataCount: summaryResponse.data?.length || 0
+    })
+
+    // Initialize KPI values
+    let totalRevenue = 0
+    let totalClicks = 0
+    let totalConversions = 0
+    let hourlyData: Record<string, { clicks: number; revenue: number }> = {}
+
+    if (summaryResponse.success && summaryResponse.data.length > 0) {
+      // Aggregate data from API response
+      summaryResponse.data.forEach(row => {
+        // If filtering by campaigns, check campaign_id
+        if (campaigns && campaigns.length > 0 && !campaigns.includes(row.campaign_id)) {
+          return
+        }
+
+        totalRevenue += row.revenue || 0
+        totalClicks += row.clicks || 0
+        totalConversions += row.conversions || 0
       })
     }
 
-    // Build filters
-    let query = supabase
-      .from('campaign_performance_view')
-      .select('*')
-      .in('network_connection_id', accessibleNetworkIds)
-      .gte('day', startDate)
-      .lte('day', endDate)
-
-    if (networks && networks.length > 0) {
-      query = query.in('network_connection_id', networks)
-    }
-
-    if (campaigns && campaigns.length > 0) {
-      query = query.in('campaign_id', campaigns)
-    }
-
-    const { data: currentPeriodData, error } = await query
-
-    if (error) {
-      console.error('Error fetching current period data:', error)
-      throw error
-    }
-
-    // Calculate previous period for comparison
-    const currentStart = new Date(startDate)
-    const currentEnd = new Date(endDate)
-    const periodDays = Math.ceil((currentEnd.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24))
-    
-    const previousStart = new Date(currentStart.getTime() - (periodDays * 24 * 60 * 60 * 1000))
-    const previousEnd = new Date(currentStart.getTime() - (24 * 60 * 60 * 1000))
-
-    let previousQuery = supabase
-      .from('campaign_performance_view')
-      .select('*')
-      .in('network_connection_id', accessibleNetworkIds)
-      .gte('day', previousStart.toISOString())
-      .lte('day', previousEnd.toISOString())
-
-    if (networks && networks.length > 0) {
-      previousQuery = previousQuery.in('network_connection_id', networks)
-    }
-
-    if (campaigns && campaigns.length > 0) {
-      previousQuery = previousQuery.in('campaign_id', campaigns)
-    }
-
-    const { data: previousPeriodData } = await previousQuery
-
-    // Calculate aggregates
-    const currentMetrics = calculateMetrics(currentPeriodData || [])
-    const previousMetrics = calculateMetrics(previousPeriodData || [])
-
-    // Calculate percentage changes
-    const kpis = {
-      revenue: {
-        value: currentMetrics.revenue,
-        change: calculatePercentageChange(currentMetrics.revenue, previousMetrics.revenue),
-        period: `${periodDays}d`
-      },
-      clicks: {
-        value: currentMetrics.clicks,
-        change: calculatePercentageChange(currentMetrics.clicks, previousMetrics.clicks)
-      },
-      conversions: {
-        value: currentMetrics.conversions,
-        change: calculatePercentageChange(currentMetrics.conversions, previousMetrics.conversions)
-      },
-      cvr: {
-        value: currentMetrics.cvr,
-        change: calculatePercentageChange(currentMetrics.cvr, previousMetrics.cvr)
-      },
-      epc: {
-        value: currentMetrics.epc,
-        change: calculatePercentageChange(currentMetrics.epc, previousMetrics.epc)
-      },
-      roas: {
-        value: currentMetrics.roas,
-        change: calculatePercentageChange(currentMetrics.roas, previousMetrics.roas)
+    // Try to get hourly data as well
+    try {
+      const hourlyResponse = await api.getHourlySummary(apiParams)
+      
+      if (hourlyResponse.success && hourlyResponse.data.length > 0) {
+        hourlyResponse.data.forEach(row => {
+          const hour = row.hour || '00'
+          if (!hourlyData[hour]) {
+            hourlyData[hour] = { clicks: 0, revenue: 0 }
+          }
+          hourlyData[hour].clicks += row.clicks || 0
+          hourlyData[hour].revenue += row.revenue || 0
+        })
       }
+    } catch (error) {
+      console.error('⚠️ [SUMMARY] Failed to fetch hourly data:', error)
     }
 
-    // Generate trends data
-    const trends = generateTrendsData(currentPeriodData || [])
-    
-    // Find peak hour from trends data
-    const peakHour = trends.reduce((max, current) => 
-      current.clicks > max.clicks ? current : max
-    )
-    
-    // Add peakHour to KPIs
-    kpis.peakHour = {
-      value: peakHour.hour,
-      clicks: peakHour.clicks
+    // Find peak click hour
+    let peakHour = { value: '--', clicks: 0 }
+    Object.entries(hourlyData).forEach(([hour, data]) => {
+      if (data.clicks > peakHour.clicks) {
+        peakHour = { value: `${hour}:00`, clicks: data.clicks }
+      }
+    })
+
+    // Calculate metrics
+    const cvr = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0
+    const epc = totalClicks > 0 ? totalRevenue / totalClicks : 0
+
+    // Generate hourly trend data
+    const trends = []
+    for (let i = 0; i < 24; i++) {
+      const hour = i.toString().padStart(2, '0')
+      const data = hourlyData[hour] || { clicks: 0, revenue: 0 }
+      trends.push({
+        hour: `${hour}:00`,
+        clicks: data.clicks,
+        revenue: data.revenue
+      })
     }
 
-    const responseData = { kpis, trends }
+    const responseData = {
+      kpis: {
+        revenue: { value: totalRevenue, change: 0, period: '30d' },
+        clicks: { value: totalClicks, change: 0 },
+        conversions: { value: totalConversions, change: 0 },
+        cvr: { value: cvr, change: 0 },
+        epc: { value: epc, change: 0 },
+        roas: { value: 0, change: 0 },
+        peakHour: peakHour
+      },
+      trends: trends
+    }
+
+    console.log('📤 [SUMMARY] Sending response:', {
+      totalClicks,
+      totalRevenue,
+      totalConversions,
+      trendsCount: trends.length
+    })
     
     // Cache the response for 2 minutes
     apiCache.set(cacheKey, responseData, 2)
 
     return NextResponse.json(responseData)
   } catch (error) {
-    console.error('Error generating summary:', error)
+    console.error('❌ [SUMMARY] Error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
-}
-
-function calculateMetrics(data: any[]) {
-  const totals = data.reduce(
-    (acc, row) => ({
-      revenue: acc.revenue + (row.revenue || 0),
-      clicks: acc.clicks + (row.clicks || 0),
-      conversions: acc.conversions + (row.conversions || 0),
-      adSpend: acc.adSpend + (row.ad_spend || 0)
-    }),
-    { revenue: 0, clicks: 0, conversions: 0, adSpend: 0 }
-  )
-
-  return {
-    revenue: totals.revenue,
-    clicks: totals.clicks,
-    conversions: totals.conversions,
-    cvr: totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0,
-    epc: totals.clicks > 0 ? totals.revenue / totals.clicks : 0,
-    roas: totals.adSpend > 0 ? totals.revenue / totals.adSpend : 0
-  }
-}
-
-function calculatePercentageChange(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : 0
-  return ((current - previous) / previous) * 100
-}
-
-function generateTrendsData(data: any[]) {
-  // Generate hourly data for today (24 hours)
-  const today = new Date()
-  const hourlyData: any[] = []
-  
-  // Create 24 hours of data
-  for (let i = 0; i < 24; i++) {
-    const hour = i.toString().padStart(2, '0') + ':00'
-    const timeFormatted = hour
-    
-    // Generate sample data based on time patterns (higher in afternoon/evening)
-    const baseClicks = Math.floor(Math.random() * 200) + 50
-    const timeMultiplier = getTimeMultiplier(i)
-    const clicks = Math.floor(baseClicks * timeMultiplier)
-    const conversions = Math.floor(clicks * (Math.random() * 0.05 + 0.02)) // 2-7% CVR
-    const revenue = conversions * (Math.random() * 50 + 30) // $30-80 per conversion
-    
-    hourlyData.push({
-      hour,
-      time: timeFormatted,
-      revenue: Math.round(revenue * 100) / 100,
-      clicks,
-      conversions,
-      spend: Math.round(revenue * 0.7 * 100) / 100 // 70% ROAS
-    })
-  }
-  
-  return hourlyData
-}
-
-function getTimeMultiplier(hour: number): number {
-  // Higher traffic during business hours and evening
-  if (hour >= 9 && hour <= 11) return 1.5 // Morning peak
-  if (hour >= 14 && hour <= 16) return 2.0 // Afternoon peak  
-  if (hour >= 19 && hour <= 21) return 2.2 // Evening peak
-  if (hour >= 22 || hour <= 6) return 0.3 // Night low
-  return 1.0 // Default
 }
