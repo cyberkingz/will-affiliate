@@ -7,6 +7,7 @@ import { KPICards, KPIData } from '@/components/dashboard/kpi-cards'
 import { TrendsChart, TrendData } from '@/components/dashboard/trends-chart'
 import { ClicksTable, ClickData } from '@/components/dashboard/clicks-table'
 import { ConversionsTable, ConversionData } from '@/components/dashboard/conversions-table'
+import { TableFilters, TableFiltersState } from '@/components/dashboard/table-filters'
 import { Database } from '@/types/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -39,6 +40,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [trendData, setTrendData] = useState<TrendData[]>([])
   const [clicksData, setClicksData] = useState<ClickData[]>([])
   const [conversionsData, setConversionsData] = useState<ConversionData[]>([])
+  const [tableFilters, setTableFilters] = useState<TableFiltersState>({
+    offerName: '',
+    subId: '',
+    subId2: ''
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [syncStatus, setSyncStatus] = useState({
     isActive: false,
@@ -49,6 +55,9 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [availableNetworks, setAvailableNetworks] = useState<Array<{ id: string; name: string }>>([])
   const [availableCampaigns, setAvailableCampaigns] = useState<Array<{ id: string; name: string }>>([])
   const [availableSubIds, setAvailableSubIds] = useState<string[]>([])
+  const [availableOfferNames, setAvailableOfferNames] = useState<string[]>([])
+  const [availableTableSubIds, setAvailableTableSubIds] = useState<string[]>([])
+  const [availableTableSubIds2, setAvailableTableSubIds2] = useState<string[]>([])
 
   const fetchData = async () => {
     setIsLoading(true)
@@ -81,7 +90,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
           endDate: filters.dateRange.to.toISOString(),
           networks: filters.networks,
           campaigns: filters.campaigns,
-          subIds: filters.subIds
+          subIds: filters.subIds,
+          tableFilters: tableFilters
         })
       })
 
@@ -99,7 +109,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
           endDate: filters.dateRange.to.toISOString(),
           networks: filters.networks,
           campaigns: filters.campaigns,
-          subIds: filters.subIds
+          subIds: filters.subIds,
+          tableFilters: tableFilters
         })
       })
 
@@ -115,6 +126,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
         setAvailableNetworks(filtersData.networks)
         setAvailableCampaigns(filtersData.campaigns)
         setAvailableSubIds(filtersData.subIds)
+        
+        // Set table filter options
+        setAvailableOfferNames(['Playful Rewards - RevShare'])
+        setAvailableTableSubIds(['aug301', ''])
+        setAvailableTableSubIds2(['aug301', ''])
       }
 
       // Fetch sync status
@@ -132,7 +148,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
 
   useEffect(() => {
     fetchData()
-  }, [filters])
+  }, [filters, tableFilters])
 
 
   const handleRefresh = () => {
@@ -158,6 +174,15 @@ export function DashboardContent({ user }: DashboardContentProps) {
 
           {/* Trends Chart */}
           <TrendsChart data={trendData} isLoading={isLoading} />
+
+          {/* Table Filters */}
+          <TableFilters
+            filters={tableFilters}
+            onFiltersChange={setTableFilters}
+            availableOfferNames={availableOfferNames}
+            availableSubIds={availableTableSubIds}
+            availableSubIds2={availableTableSubIds2}
+          />
 
           {/* Data Tables */}
           <div className="grid gap-6 lg:grid-cols-2">

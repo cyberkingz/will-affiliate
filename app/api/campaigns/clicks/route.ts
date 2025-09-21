@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { startDate, endDate, networks, campaigns, subIds } = body
+    const { startDate, endDate, networks, campaigns, subIds, tableFilters } = body
 
     // Get user's accessible networks
     const { data: userNetworks } = await supabase
@@ -45,7 +45,27 @@ export async function POST(request: NextRequest) {
     // Sort by date descending
     mockClicks.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())
 
-    return NextResponse.json({ clicks: mockClicks })
+    // Apply table filters
+    let filteredClicks = mockClicks
+    if (tableFilters) {
+      if (tableFilters.offerName) {
+        filteredClicks = filteredClicks.filter(click => 
+          click.offerName.toLowerCase().includes(tableFilters.offerName.toLowerCase())
+        )
+      }
+      if (tableFilters.subId) {
+        filteredClicks = filteredClicks.filter(click => 
+          click.subId === tableFilters.subId
+        )
+      }
+      if (tableFilters.subId2) {
+        filteredClicks = filteredClicks.filter(click => 
+          click.subId2 === tableFilters.subId2
+        )
+      }
+    }
+
+    return NextResponse.json({ clicks: filteredClicks })
   } catch (error) {
     console.error('Error fetching clicks data:', error)
     return NextResponse.json(
