@@ -31,35 +31,20 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
         <LayoutDashboard className="text-neutral-300 h-5 w-5 flex-shrink-0" />
       ),
     },
-    {
-      label: "Analytics",
-      href: "/dashboard",
-      icon: (
-        <BarChart3 className="text-neutral-300 h-5 w-5 flex-shrink-0" />
-      ),
-    },
   ]
 
   // Add admin links if user is admin
   if (user.role === 'admin') {
     links.push(
       {
-        label: "Connections",
-        href: "/admin/connections",
+        label: "Team",
+        href: "/admin/team",
         icon: (
           <Network className="text-neutral-300 h-5 w-5 flex-shrink-0" />
         ),
       }
     )
   }
-
-  links.push({
-    label: "Settings",
-    href: "/settings",
-    icon: (
-      <Settings className="text-neutral-300 h-5 w-5 flex-shrink-0" />
-    ),
-  })
 
   const [open, setOpen] = useState(false)
 
@@ -132,7 +117,7 @@ const Logo = () => {
         animate={{ opacity: 1 }}
         className="font-medium text-neutral-200 whitespace-pre"
       >
-        Campaigns Insight
+        WillAffiliate
       </motion.span>
     </Link>
   )

@@ -129,21 +129,9 @@ export const KPICards = React.memo(function KPICards({ data, isLoading = false }
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{item.value}</div>
-              {item.subtitle ? (
+              {item.subtitle && (
                 <p className="text-xs text-muted-foreground">
                   {item.subtitle}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground flex items-center">
-                  <TrendIcon 
-                    className={`mr-1 h-3 w-3 ${
-                      isPositive ? 'text-green-500' : 'text-red-500'
-                    }`} 
-                  />
-                  <span className={isPositive ? 'text-green-500' : 'text-red-500'}>
-                    {isPositive ? '+' : ''}{item.change.toFixed(1)}%
-                  </span>
-                  <span className="ml-1">vs last period</span>
                 </p>
               )}
             </CardContent>

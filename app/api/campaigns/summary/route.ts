@@ -119,20 +119,101 @@ export async function POST(request: NextRequest) {
               end_date: apiEndDate
             })
 
-            if (hourlySummaryResponse.success && hourlySummaryResponse.data) {
+            console.log('🔍 [SUMMARY] Hourly Summary API response:', {
+              success: hourlySummaryResponse.success,
+              hasData: !!hourlySummaryResponse.data,
+              dataLength: hourlySummaryResponse.data?.length || 0,
+              message: hourlySummaryResponse.message
+            })
+
+            if (hourlySummaryResponse.success && hourlySummaryResponse.data && hourlySummaryResponse.data.length > 0) {
               console.log('✅ [SUMMARY] Hourly data received:', hourlySummaryResponse.data.length, 'hours')
               
-              // Process hourly data
-              hourlySummaryResponse.data.forEach((hourData: any) => {
-                const hour = hourData.hour || hourData.time || '00'
-                hourlyData[hour] = {
+              // Debug: Log first hour structure
+              if (hourlySummaryResponse.data[0]) {
+                console.log('🔍 [SUMMARY] First hour structure:', JSON.stringify(hourlySummaryResponse.data[0], null, 2))
+                console.log('🔍 [SUMMARY] Available hourly fields:', Object.keys(hourlySummaryResponse.data[0]))
+              }
+              
+              // Process hourly data with better field detection
+              hourlySummaryResponse.data.forEach((hourData: any, index: number) => {
+                // Try different possible hour field names
+                let hourKey = hourData.hour || hourData.time || hourData.datetime || hourData.date || hourData.h || '00'
+                
+                // If it's a full datetime, extract just the hour
+                if (typeof hourKey === 'string' && hourKey.includes(':')) {
+                  const hourMatch = hourKey.match(/(\d{1,2}):/)
+                  if (hourMatch) {
+                    hourKey = hourMatch[1].padStart(2, '0')
+                  }
+                } else if (typeof hourKey === 'string' && hourKey.includes('T')) {
+                  // ISO datetime format
+                  const date = new Date(hourKey)
+                  hourKey = date.getHours().toString().padStart(2, '0')
+                } else if (typeof hourKey === 'number') {
+                  // Numeric hour
+                  hourKey = hourKey.toString().padStart(2, '0')
+                } else if (!hourKey || hourKey === '00') {
+                  // Fallback: use index as hour (assuming chronological order)
+                  hourKey = index.toString().padStart(2, '0')
+                }
+                
+                console.log(`🕐 [SUMMARY] Processing hour ${index}: ${JSON.stringify(hourData)} -> key: ${hourKey}`)
+                
+                // Try different possible revenue field names
+                const revenue = hourData.revenue || hourData.payout || hourData.earnings || hourData.commission || 0
+                
+                hourlyData[hourKey] = {
                   clicks: hourData.clicks || 0,
-                  revenue: hourData.revenue || 0
+                  revenue: revenue,
+                  conversions: hourData.conversions || 0
+                }
+                
+                // Log revenue specifically for debugging
+                if (hourData.clicks > 0) {
+                  console.log(`💰 [SUMMARY] Hour ${hourKey} revenue debug:`, {
+                    rawRevenue: hourData.revenue,
+                    rawPayout: hourData.payout,
+                    rawEarnings: hourData.earnings,
+                    rawCommission: hourData.commission,
+                    finalRevenue: revenue,
+                    clicks: hourData.clicks,
+                    conversions: hourData.conversions
+                  })
                 }
               })
+              
+              console.log('📊 [SUMMARY] Processed hourly data:', Object.keys(hourlyData).length, 'hours')
+              console.log('🔍 [SUMMARY] Sample hourly data:', Object.entries(hourlyData).slice(0, 5))
+              
+              // Check if hourly revenue data is missing/zero but we have daily revenue
+              const hourlyRevenueTotal = Object.values(hourlyData).reduce((sum: number, hour: any) => sum + (hour.revenue || 0), 0)
+              const hourlyClicksTotal = Object.values(hourlyData).reduce((sum: number, hour: any) => sum + (hour.clicks || 0), 0)
+              
+              console.log('💰 [SUMMARY] Hourly revenue totals:', {
+                hourlyRevenueTotal: hourlyRevenueTotal.toFixed(2),
+                dailyRevenueFromKPIs: totalRevenue.toFixed(2),
+                hourlyClicksTotal,
+                dailyClicksTotal: totalClicks
+              })
+              
+              // If hourly revenue is missing but we have daily revenue and clicks, distribute proportionally
+              if (hourlyRevenueTotal === 0 && totalRevenue > 0 && hourlyClicksTotal > 0) {
+                console.log('💰 [SUMMARY] Hourly revenue missing - distributing daily revenue proportionally by clicks')
+                Object.keys(hourlyData).forEach(hourKey => {
+                  const hourClicks = hourlyData[hourKey].clicks || 0
+                  if (hourClicks > 0) {
+                    const proportionalRevenue = (hourClicks / hourlyClicksTotal) * totalRevenue
+                    hourlyData[hourKey].revenue = proportionalRevenue
+                    console.log(`💰 [SUMMARY] Hour ${hourKey}: ${hourClicks} clicks -> $${proportionalRevenue.toFixed(2)} revenue`)
+                  }
+                })
+              }
+            } else {
+              console.warn('⚠️ [SUMMARY] Hourly Summary API returned no data, will show empty hourly chart')
             }
           } catch (error) {
-            console.warn('⚠️ [SUMMARY] Hourly data not available, using daily data:', error.message)
+            console.warn('⚠️ [SUMMARY] Hourly data not available, using empty data:', error.message)
           }
         }
       } else {
@@ -180,17 +261,24 @@ export async function POST(request: NextRequest) {
     if (daysDiff <= 1) {
       // Single day: Use hourly granularity
       console.log('📈 [SUMMARY] Using hourly granularity for single day')
+      console.log('🔍 [SUMMARY] Available hourly data keys:', Object.keys(hourlyData))
+      console.log('🔍 [SUMMARY] Sample hourly data values:', Object.entries(hourlyData).slice(0, 3))
+      
       for (let i = 0; i < 24; i++) {
         const hour = i.toString().padStart(2, '0')
-        const data = hourlyData[hour] || { clicks: 0, revenue: 0 }
+        const data = hourlyData[hour] || { clicks: 0, revenue: 0, conversions: 0 }
         trends.push({
           hour: `${hour}:00`,
           time: `${hour}:00`,
           clicks: data.clicks,
           revenue: parseFloat(data.revenue.toFixed(2)),
-          conversions: 0 // Hourly conversions not available
+          conversions: data.conversions
         })
       }
+      
+      console.log('📊 [SUMMARY] Generated hourly trends:', trends.length, 'hours')
+      console.log('🔍 [SUMMARY] Non-zero hourly trends:', trends.filter(t => t.clicks > 0 || t.revenue > 0).length)
+      console.log('🔍 [SUMMARY] Sample trends:', trends.slice(0, 5))
     } else {
       // Multiple days: Use daily granularity from Daily Summary API
       console.log('📈 [SUMMARY] Using daily granularity from Daily Summary API')
