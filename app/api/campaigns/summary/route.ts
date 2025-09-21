@@ -51,25 +51,42 @@ export async function POST(request: NextRequest) {
 
     // Fetch Daily Summary data - this matches exactly what the Affluent dashboard shows
     console.log('📊 [SUMMARY] Fetching daily summary data...')
+    let dailySummarySuccess = false
+    
     try {
       const dailySummaryResponse = await api.getDailySummary({
         start_date: apiStartDate,
         end_date: apiEndDate
       })
 
-      if (dailySummaryResponse.success && dailySummaryResponse.data) {
+      console.log('📋 [SUMMARY] Daily Summary API response:', {
+        success: dailySummaryResponse.success,
+        hasData: !!dailySummaryResponse.data,
+        dataLength: dailySummaryResponse.data?.length || 0
+      })
+
+      if (dailySummaryResponse.success && dailySummaryResponse.data && dailySummaryResponse.data.length > 0) {
         console.log('✅ [SUMMARY] Daily summary data received:', dailySummaryResponse.data.length, 'days')
+        
+        // Debug: Log first day structure
+        if (dailySummaryResponse.data[0]) {
+          console.log('🔍 [SUMMARY] First day structure:', JSON.stringify(dailySummaryResponse.data[0], null, 2))
+          console.log('🔍 [SUMMARY] Available daily fields:', Object.keys(dailySummaryResponse.data[0]))
+        }
         
         // Calculate totals from daily data
         totalClicks = dailySummaryResponse.data.reduce((sum: number, day: any) => sum + (day.clicks || 0), 0)
         totalConversions = dailySummaryResponse.data.reduce((sum: number, day: any) => sum + (day.conversions || 0), 0)
         totalRevenue = dailySummaryResponse.data.reduce((sum: number, day: any) => sum + (day.revenue || 0), 0)
         
-        console.log('📊 [SUMMARY] Totals from Daily Summary:', {
+        console.log('📊 [SUMMARY] ✅ TOTALS FROM DAILY SUMMARY API:', {
           totalClicks,
           totalConversions, 
-          totalRevenue: totalRevenue.toFixed(2)
+          totalRevenue: totalRevenue.toFixed(2),
+          source: 'Daily Summary API'
         })
+        
+        dailySummarySuccess = true
 
         // For single day view, we need hourly breakdown
         if (daysDiff <= 1) {
@@ -96,12 +113,16 @@ export async function POST(request: NextRequest) {
             console.warn('⚠️ [SUMMARY] Hourly data not available, using daily data:', error.message)
           }
         }
+      } else {
+        console.warn('⚠️ [SUMMARY] Daily Summary API returned no data')
       }
     } catch (error) {
       console.error('❌ [SUMMARY] Daily Summary API failed:', error.message)
-      
-      // Fallback to Performance Summary for basic KPIs
-      console.log('📈 [SUMMARY] Falling back to Performance Summary...')
+    }
+
+    // Only use fallback if Daily Summary completely failed
+    if (!dailySummarySuccess) {
+      console.log('📈 [SUMMARY] Daily Summary failed, falling back to Performance Summary...')
       try {
         const performanceSummary = await api.getPerformanceSummary({
           date: apiStartDate
@@ -110,7 +131,7 @@ export async function POST(request: NextRequest) {
         if (performanceSummary.success && performanceSummary.data.length > 0) {
           const summary = performanceSummary.data[0]
           totalRevenue = summary.current_revenue || summary.revenue || 0
-          console.log('💰 [SUMMARY] Fallback revenue:', totalRevenue)
+          console.log('💰 [SUMMARY] ⚠️ FALLBACK REVENUE (Performance Summary):', totalRevenue)
         }
       } catch (fallbackError) {
         console.error('❌ [SUMMARY] Fallback also failed:', fallbackError.message)
