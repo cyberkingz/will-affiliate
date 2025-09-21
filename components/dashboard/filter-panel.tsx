@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { CalendarIcon, Filter, Clock } from 'lucide-react'
+import React, { useState, useId } from 'react'
+import { CalendarIcon, Settings2, X, Check, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -11,14 +11,26 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { dateTemplates, getDateRangeLabel, applyDateTemplate } from '@/lib/utils/date-templates'
 
 export interface FilterState {
@@ -48,75 +60,106 @@ export function FilterPanel({
   availableSubIds,
   isLoading = false
 }: FilterPanelProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
   const [networkOffers, setNetworkOffers] = useState<Array<{ id: string; name: string }>>([])
   const [loadingOffers, setLoadingOffers] = useState(false)
+  const [selectedDateTemplate, setSelectedDateTemplate] = useState<string | undefined>()
+  
+  // Generate stable IDs for accessibility
+  const dateRangeId = useId()
+  const networkId = useId()
+  const offersId = useId()
+  const subIdsId = useId()
 
   const updateFilters = (updates: Partial<FilterState>) => {
     onFiltersChange({ ...filters, ...updates })
   }
 
+  // Check if current date range matches any template
+  React.useEffect(() => {
+    const matchingTemplate = dateTemplates.find(template => {
+      const templateRange = template.getValue()
+      const isSameFrom = Math.abs(templateRange.from.getTime() - filters.dateRange.from.getTime()) < 1000
+      const isSameTo = Math.abs(templateRange.to.getTime() - filters.dateRange.to.getTime()) < 1000
+      return isSameFrom && isSameTo
+    })
+    setSelectedDateTemplate(matchingTemplate?.id)
+  }, [filters.dateRange])
+
   const fetchOffersForNetwork = async (networkId: string) => {
-    console.log('🎯 [FILTER-PANEL] Starting to fetch offers for network:', networkId)
-    console.log('🔧 [FILTER-PANEL] Setting loading state to true...')
     setLoadingOffers(true)
     
     try {
       const response = await fetch(`/api/network-campaigns?network=${networkId}`)
       if (response.ok) {
         const data = await response.json()
-        console.log('📥 [FILTER-PANEL] Offers received:', data.campaigns?.length || 0)
-        console.log('🔍 [FILTER-PANEL] Full API response data:', data)
-        console.log('📋 [FILTER-PANEL] Individual offers:', data.campaigns)
-        
-        // Log structure of first offer to understand data format
-        if (data.campaigns && data.campaigns.length > 0) {
-          console.log('🎯 [FILTER-PANEL] First offer structure:', data.campaigns[0])
-          console.log('📊 [FILTER-PANEL] All offer IDs and names:')
-          data.campaigns.forEach((offer, index) => {
-            console.log(`  ${index + 1}. ID: ${offer.id}, Name: ${offer.name}, Campaign ID: ${offer.campaignId || 'N/A'}`)
-          })
-        }
-        
         setNetworkOffers(data.campaigns || [])
       } else {
-        console.error('❌ [FILTER-PANEL] Failed to fetch offers:', response.status)
         setNetworkOffers([])
       }
     } catch (error) {
-      console.error('❌ [FILTER-PANEL] Error fetching offers:', error)
       setNetworkOffers([])
     } finally {
       setLoadingOffers(false)
     }
   }
 
-  // Fetch offers when Affluent network is selected (default)
+  // Fetch offers when networks change
   React.useEffect(() => {
-    console.log('🔄 [FILTER-PANEL] Networks changed:', filters.networks)
-    if (filters.networks.includes('affluent')) {
-      console.log('✅ [FILTER-PANEL] Affluent network found, fetching offers...')
-      fetchOffersForNetwork('affluent')
+    if (filters.networks.length > 0) {
+      // For now, fetch for the first selected network
+      fetchOffersForNetwork(filters.networks[0])
     } else {
-      console.log('❌ [FILTER-PANEL] Affluent network not found, clearing offers')
       setNetworkOffers([])
     }
   }, [filters.networks])
-
-  // Also fetch on component mount if affluent is already selected
-  React.useEffect(() => {
-    console.log('🚀 [FILTER-PANEL] Component mounted, initial networks:', filters.networks)
-    if (filters.networks.includes('affluent')) {
-      console.log('✅ [FILTER-PANEL] Affluent network already selected on mount, fetching offers...')
-      fetchOffersForNetwork('affluent')
-    }
-  }, [])
 
   const applyTemplate = (templateId: string) => {
     const dateRange = applyDateTemplate(templateId)
     if (dateRange) {
       updateFilters({ dateRange })
+      setSelectedDateTemplate(templateId)
     }
+  }
+
+  const handleDateRangeSelect = (range: { from: Date; to: Date } | undefined) => {
+    if (range?.from && range?.to) {
+      updateFilters({ dateRange: range })
+      setSelectedDateTemplate(undefined) // Clear template selection for custom range
+    }
+  }
+
+  const toggleNetwork = (networkId: string) => {
+    const isSelected = filters.networks.includes(networkId)
+    if (isSelected) {
+      updateFilters({ networks: filters.networks.filter(id => id !== networkId) })
+    } else {
+      updateFilters({ networks: [...filters.networks, networkId] })
+    }
+  }
+
+  const toggleOffer = (offerId: string) => {
+    const isSelected = filters.offers.includes(offerId)
+    if (isSelected) {
+      updateFilters({ offers: filters.offers.filter(id => id !== offerId) })
+    } else {
+      updateFilters({ offers: [...filters.offers, offerId] })
+    }
+  }
+
+  const toggleSubId = (subId: string) => {
+    const isSelected = filters.subIds.includes(subId)
+    if (isSelected) {
+      updateFilters({ subIds: filters.subIds.filter(id => id !== subId) })
+    } else {
+      updateFilters({ subIds: [...filters.subIds, subId] })
+    }
+  }
+
+  const removeFilter = (type: 'networks' | 'offers' | 'subIds', value: string) => {
+    updateFilters({
+      [type]: filters[type].filter((item) => item !== value)
+    })
   }
 
   const clearFilters = () => {
@@ -129,6 +172,7 @@ export function FilterPanel({
       offers: [],
       subIds: []
     })
+    setSelectedDateTemplate(undefined)
   }
 
   const activeFiltersCount = 
@@ -136,298 +180,404 @@ export function FilterPanel({
     filters.offers.length + 
     filters.subIds.length
 
+  const currentDateRangeLabel = getDateRangeLabel(filters.dateRange.from, filters.dateRange.to)
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">Filters</CardTitle>
-          <div className="flex items-center space-x-2">
-            {activeFiltersCount > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                {activeFiltersCount} active
-              </Badge>
-            )}
+    <div className="space-y-4">
+      {/* Filter Chips Toolbar - Always Visible */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Date Range Chip */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="h-8 text-xs font-normal border-dashed"
+              aria-label={`Date range: ${currentDateRangeLabel}. Click to change date range.`}
+              aria-describedby={dateRangeId}
+            >
+              <CalendarIcon className="h-3 w-3 mr-1" />
+              {currentDateRangeLabel}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <div className="p-3">
+              <Calendar
+                mode="range"
+                defaultMonth={filters.dateRange.from}
+                selected={{
+                  from: filters.dateRange.from,
+                  to: filters.dateRange.to,
+                }}
+                onSelect={handleDateRangeSelect}
+                numberOfMonths={2}
+                aria-label="Select date range"
+              />
+            </div>
+          </PopoverContent>
+        </Popover>
+        
+        {/* Network Filter Chips */}
+        {filters.networks.map((networkId) => {
+          const network = availableNetworks.find(n => n.id === networkId)
+          return (
+            <Badge 
+              key={networkId} 
+              variant="secondary" 
+              className="h-8 text-xs gap-1 pr-1"
+            >
+              {network?.name || networkId}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0.5 hover:bg-transparent"
+                onClick={() => removeFilter('networks', networkId)}
+                aria-label={`Remove ${network?.name || networkId} filter`}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )
+        })}
+        
+        {/* Offer Filter Chips */}
+        {filters.offers.map((offerId) => {
+          const offer = [...availableOffers, ...networkOffers].find(o => o.id === offerId)
+          return (
+            <Badge 
+              key={offerId} 
+              variant="secondary" 
+              className="h-8 text-xs gap-1 pr-1"
+            >
+              {offer?.name || offerId}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0.5 hover:bg-transparent"
+                onClick={() => removeFilter('offers', offerId)}
+                aria-label={`Remove ${offer?.name || offerId} filter`}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )
+        })}
+        
+        {/* Sub ID Filter Chips */}
+        {filters.subIds.map((subId) => (
+          <Badge 
+            key={subId} 
+            variant="secondary" 
+            className="h-8 text-xs gap-1 pr-1"
+          >
+            {subId}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIsOpen(!isOpen)}
+              className="h-auto p-0.5 hover:bg-transparent"
+              onClick={() => removeFilter('subIds', subId)}
+              aria-label={`Remove ${subId} filter`}
             >
-              <Filter className="h-4 w-4" />
+              <X className="h-3 w-3" />
             </Button>
-          </div>
-        </div>
-      </CardHeader>
-      
-      {isOpen && (
-        <CardContent className="space-y-4">
-          {/* Date Range */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium">Date Range</label>
+          </Badge>
+        ))}
+        
+        {/* Edit Filters Button */}
+        <Sheet open={isEditMode} onOpenChange={setIsEditMode}>
+          <SheetTrigger asChild>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="h-8 text-xs font-normal"
+              aria-expanded={isEditMode}
+              aria-controls="filter-editor"
+            >
+              <Settings2 className="h-3 w-3 mr-1" />
+              Edit Filters
+              {activeFiltersCount > 0 && (
+                <Badge variant="secondary" className="ml-2 h-4 text-xs px-1">
+                  {activeFiltersCount}
+                </Badge>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent id="filter-editor" className="sm:max-w-md">
+            <SheetHeader>
+              <SheetTitle>Edit Filters</SheetTitle>
+              <SheetDescription>
+                Configure your dashboard filters to focus on specific data.
+              </SheetDescription>
+            </SheetHeader>
             
-            {/* Current Date Range Display */}
-            <div className="flex items-center space-x-2 p-3 bg-neutral-900 rounded-lg border">
-              <CalendarIcon className="h-4 w-4 text-neutral-400" />
-              <span className="text-sm font-medium text-neutral-200">
-                {getDateRangeLabel(filters.dateRange.from, filters.dateRange.to)}
-              </span>
-            </div>
-
-            {/* Date Templates */}
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2 mb-2">
-                <Clock className="h-4 w-4 text-neutral-400" />
-                <span className="text-xs font-medium text-neutral-300">Quick Templates</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {dateTemplates.slice(0, 6).map((template) => (
-                  <Button
-                    key={template.id}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8 bg-neutral-800 border-neutral-700 hover:bg-neutral-700 text-neutral-200"
-                    onClick={() => applyTemplate(template.id)}
-                    disabled={isLoading}
+            <div className="py-6 space-y-6">
+              {/* Date Range Section */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium" id={dateRangeId}>
+                  Date Range
+                </Label>
+                <p className="text-xs text-muted-foreground" aria-describedby={dateRangeId}>
+                  Choose a date range for your data analysis
+                </p>
+                
+                {/* Quick Date Templates */}
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium text-muted-foreground">
+                    Quick Select
+                  </Label>
+                  <ToggleGroup 
+                    type="single" 
+                    value={selectedDateTemplate}
+                    onValueChange={(value) => value && applyTemplate(value)}
+                    className="grid grid-cols-2 gap-2"
                   >
-                    {template.label}
-                  </Button>
-                ))}
-              </div>
-              
-              {/* More Templates */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="w-full text-xs text-neutral-400 hover:text-neutral-200"
-                  >
-                    More Options...
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-2">
-                  <div className="grid gap-1">
-                    {dateTemplates.slice(6).map((template) => (
-                      <Button
+                    {dateTemplates.slice(0, 6).map((template) => (
+                      <ToggleGroupItem
                         key={template.id}
-                        variant="ghost"
+                        value={template.id}
+                        variant="outline"
                         size="sm"
-                        className="justify-start text-xs h-8"
-                        onClick={() => {
-                          applyTemplate(template.id)
-                        }}
+                        className="text-xs h-8 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                        aria-pressed={selectedDateTemplate === template.id}
                       >
                         {template.label}
-                      </Button>
+                      </ToggleGroupItem>
                     ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Custom Date Range */}
-            <div className="space-y-2">
-              <span className="text-xs font-medium text-neutral-300">Custom Range</span>
-              <div className="grid grid-cols-2 gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="justify-start text-left font-normal text-xs h-8 bg-neutral-800 border-neutral-700"
-                      disabled={isLoading}
-                    >
-                      <CalendarIcon className="mr-1 h-3 w-3" />
-                      {filters.dateRange.from ? (
-                        format(filters.dateRange.from, "MMM dd")
-                      ) : (
-                        <span>From</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={filters.dateRange.from}
-                      onSelect={(date) => date && updateFilters({
-                        dateRange: { ...filters.dateRange, from: date }
-                      })}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="justify-start text-left font-normal text-xs h-8 bg-neutral-800 border-neutral-700"
-                      disabled={isLoading}
-                    >
-                      <CalendarIcon className="mr-1 h-3 w-3" />
-                      {filters.dateRange.to ? (
-                        format(filters.dateRange.to, "MMM dd")
-                      ) : (
-                        <span>To</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={filters.dateRange.to}
-                      onSelect={(date) => date && updateFilters({
-                        dateRange: { ...filters.dateRange, to: date }
-                      })}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-          </div>
-
-          {/* Networks */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Network</label>
-            <div className="flex items-center space-x-2 p-3 bg-neutral-900 rounded-lg border">
-              <span className="text-sm font-medium text-neutral-200">
-                Affluent Network
-              </span>
-              <Badge variant="secondary" className="text-xs">
-                Active
-              </Badge>
-            </div>
-            <p className="text-xs text-neutral-400">
-              Connected to affiliate ID: 208409
-            </p>
-          </div>
-
-          {/* Campaigns */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Offers</label>
-            <p className="text-xs text-neutral-400">
-              Choose an offer to track
-            </p>
-            {!filters.networks.includes('affluent') ? (
-              <div className="p-3 bg-neutral-800 rounded-lg border text-sm text-neutral-400">
-                Select Affluent network to load offers
-              </div>
-            ) : (
-              <>
-                <Select
-                  disabled={isLoading || loadingOffers}
-                  onValueChange={(value) => {
-                    if (value && !filters.offers.includes(value)) {
-                      updateFilters({
-                        offers: [...filters.offers, value]
-                      })
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={
-                      loadingOffers ? "Loading offers..." : 
-                      networkOffers.length === 0 ? "No offers found" :
-                      "Select offers..."
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {networkOffers.map((offer) => (
-                      <SelectItem key={offer.id} value={offer.id}>
-                        {offer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {filters.offers.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {filters.offers.map((offerId) => {
-                      const offer = networkOffers.find(c => c.id === offerId)
-                      return (
-                        <Badge
-                          key={offerId}
-                          variant="secondary"
-                          className="text-xs cursor-pointer"
-                          onClick={() => updateFilters({
-                            offers: filters.offers.filter(id => id !== offerId)
-                          })}
-                        >
-                          {offer?.name || offerId} ×
-                        </Badge>
-                      )
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Sub IDs */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Sub IDs</label>
-            <p className="text-xs text-neutral-400">
-              Filter by specific sub IDs from your campaigns
-            </p>
-            {availableSubIds.length === 0 ? (
-              <div className="p-3 bg-neutral-800 rounded-lg border text-sm text-neutral-400">
-                No sub IDs found for the current date range
-              </div>
-            ) : (
-              <>
-                <Select
-                  disabled={isLoading}
-                  onValueChange={(value) => {
-                    if (value && !filters.subIds.includes(value)) {
-                      updateFilters({
-                        subIds: [...filters.subIds, value]
-                      })
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sub IDs..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableSubIds.map((subId) => (
-                      <SelectItem key={subId} value={subId}>
-                        {subId}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {filters.subIds.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {filters.subIds.map((subId) => (
-                      <Badge
-                        key={subId}
-                        variant="secondary"
-                        className="text-xs cursor-pointer"
-                        onClick={() => updateFilters({
-                          subIds: filters.subIds.filter(id => id !== subId)
-                        })}
+                  </ToggleGroup>
+                  
+                  {/* More Templates */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full text-xs h-8"
                       >
-                        {subId} ×
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                        More Options
+                        <ChevronDown className="h-3 w-3 ml-1" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-1">
+                      <div className="grid gap-1">
+                        {dateTemplates.slice(6).map((template) => (
+                          <Button
+                            key={template.id}
+                            variant="ghost"
+                            size="sm"
+                            className="justify-start text-xs h-8 font-normal"
+                            onClick={() => applyTemplate(template.id)}
+                          >
+                            {template.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-          <div className="flex justify-between pt-2">
-            <Button variant="outline" size="sm" onClick={clearFilters}>
-              Clear All
-            </Button>
-            <Button size="sm" onClick={() => setIsOpen(false)}>
-              Apply Filters
-            </Button>
-          </div>
-        </CardContent>
-      )}
-    </Card>
+                {/* Custom Date Range */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-muted-foreground">
+                    Custom Range
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal text-sm h-9"
+                        disabled={isLoading}
+                        aria-label="Select custom date range"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {filters.dateRange.from ? (
+                          filters.dateRange.to ? (
+                            `${format(filters.dateRange.from, "MMM d, y")} - ${format(filters.dateRange.to, "MMM d, y")}`
+                          ) : (
+                            format(filters.dateRange.from, "MMM d, y")
+                          )
+                        ) : (
+                          "Pick a date range"
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="range"
+                        defaultMonth={filters.dateRange.from}
+                        selected={{
+                          from: filters.dateRange.from,
+                          to: filters.dateRange.to,
+                        }}
+                        onSelect={handleDateRangeSelect}
+                        numberOfMonths={2}
+                        aria-label="Select date range"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              
+              <Separator />
+
+              {/* Networks Section */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium" id={networkId}>
+                  Networks
+                </Label>
+                <p className="text-xs text-muted-foreground" aria-describedby={networkId}>
+                  Select the affiliate networks to include in your analysis
+                </p>
+                
+                {availableNetworks.length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground border rounded-md">
+                    No networks available
+                  </div>
+                ) : (
+                  <Command className="border rounded-md">
+                    <CommandInput placeholder="Search networks..." className="h-9" />
+                    <CommandList className="max-h-48">
+                      <CommandEmpty>No networks found.</CommandEmpty>
+                      <CommandGroup>
+                        {availableNetworks.map((network) => (
+                          <CommandItem
+                            key={network.id}
+                            onSelect={() => toggleNetwork(network.id)}
+                            className="flex items-center space-x-2 cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={filters.networks.includes(network.id)}
+                              onChange={() => toggleNetwork(network.id)}
+                              aria-label={`${filters.networks.includes(network.id) ? 'Unselect' : 'Select'} ${network.name}`}
+                            />
+                            <span className="flex-1">{network.name}</span>
+                            {filters.networks.includes(network.id) && (
+                              <Check className="h-4 w-4" />
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                )}
+              </div>
+              
+              <Separator />
+
+              {/* Offers Section */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium" id={offersId}>
+                  Offers
+                </Label>
+                <p className="text-xs text-muted-foreground" aria-describedby={offersId}>
+                  Select specific offers to analyze performance
+                </p>
+                
+                {filters.networks.length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground border rounded-md">
+                    Select a network first to load offers
+                  </div>
+                ) : loadingOffers ? (
+                  <div className="p-3 text-sm text-muted-foreground border rounded-md">
+                    Loading offers...
+                  </div>
+                ) : (
+                  <Command className="border rounded-md">
+                    <CommandInput placeholder="Search offers..." className="h-9" />
+                    <CommandList className="max-h-48">
+                      <CommandEmpty>No offers found.</CommandEmpty>
+                      <CommandGroup>
+                        {[...availableOffers, ...networkOffers].map((offer) => (
+                          <CommandItem
+                            key={offer.id}
+                            onSelect={() => toggleOffer(offer.id)}
+                            className="flex items-center space-x-2 cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={filters.offers.includes(offer.id)}
+                              onChange={() => toggleOffer(offer.id)}
+                              aria-label={`${filters.offers.includes(offer.id) ? 'Unselect' : 'Select'} ${offer.name}`}
+                            />
+                            <span className="flex-1">{offer.name}</span>
+                            {filters.offers.includes(offer.id) && (
+                              <Check className="h-4 w-4" />
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                )}
+              </div>
+              
+              <Separator />
+
+              {/* Sub IDs Section */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium" id={subIdsId}>
+                  Sub IDs
+                </Label>
+                <p className="text-xs text-muted-foreground" aria-describedby={subIdsId}>
+                  Filter by specific sub IDs from your campaigns
+                </p>
+                
+                {availableSubIds.length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground border rounded-md">
+                    No sub IDs found for the current date range
+                  </div>
+                ) : (
+                  <Command className="border rounded-md">
+                    <CommandInput placeholder="Search sub IDs..." className="h-9" />
+                    <CommandList className="max-h-48">
+                      <CommandEmpty>No sub IDs found.</CommandEmpty>
+                      <CommandGroup>
+                        {availableSubIds.map((subId) => (
+                          <CommandItem
+                            key={subId}
+                            onSelect={() => toggleSubId(subId)}
+                            className="flex items-center space-x-2 cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={filters.subIds.includes(subId)}
+                              onChange={() => toggleSubId(subId)}
+                              aria-label={`${filters.subIds.includes(subId) ? 'Unselect' : 'Select'} ${subId}`}
+                            />
+                            <span className="flex-1">{subId}</span>
+                            {filters.subIds.includes(subId) && (
+                              <Check className="h-4 w-4" />
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                )}
+              </div>
+            </div>
+            
+            {/* Footer Actions */}
+            <div className="flex justify-between pt-4 border-t">
+              <Button variant="outline" onClick={clearFilters}>
+                Clear All
+              </Button>
+              <Button onClick={() => setIsEditMode(false)}>
+                Done
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+        
+        {/* Clear All Button */}
+        {activeFiltersCount > 0 && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={clearFilters}
+            className="h-8 text-xs text-muted-foreground"
+          >
+            Clear All
+          </Button>
+        )}
+      </div>
+    </div>
   )
 }
