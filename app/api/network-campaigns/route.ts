@@ -55,7 +55,42 @@ export async function GET(request: NextRequest) {
       let campaigns = []
 
       if (offersResponse.success && offersResponse.data.length > 0) {
-        console.log('✅ [NETWORK-CAMPAIGNS] Processing offers for campaigns...')
+        console.log('✅ [NETWORK-CAMPAIGNS] Processing offers...')
+        
+        // Log complete structure of first offer to understand architecture
+        console.log('🔍 [NETWORK-CAMPAIGNS] Complete structure of first offer:')
+        console.log(JSON.stringify(offersResponse.data[0], null, 2))
+        
+        // Log all available fields across all offers
+        const allFields = new Set()
+        offersResponse.data.forEach(offer => {
+          Object.keys(offer).forEach(key => allFields.add(key))
+        })
+        console.log('📋 [NETWORK-CAMPAIGNS] All available fields in offers:', Array.from(allFields).sort())
+        
+        // Log campaign and sub ID data specifically
+        console.log('🎯 [NETWORK-CAMPAIGNS] Campaign and SubID analysis:')
+        offersResponse.data.forEach((offer, index) => {
+          console.log(`  Offer ${index + 1}:`, {
+            offer_id: offer.offer_id,
+            offer_name: offer.offer_name,
+            campaign_id: offer.campaign_id,
+            offer_contract_id: offer.offer_contract_id,
+            vertical_name: offer.vertical_name,
+            price: offer.price,
+            price_format: offer.price_format,
+            status: offer.offer_status?.offer_status_name,
+            // Look for any sub_id related fields
+            sub_fields: Object.keys(offer).filter(key => 
+              key.toLowerCase().includes('sub') || 
+              key.toLowerCase().includes('id') ||
+              key.toLowerCase().includes('tracking')
+            ).reduce((acc, key) => {
+              acc[key] = offer[key]
+              return acc
+            }, {})
+          })
+        })
         
         // Extract offers (what affiliates choose to promote)
         let offersProcessed = 0
@@ -93,7 +128,14 @@ export async function GET(request: NextRequest) {
         }]
       }
 
-      console.log('📤 [NETWORK-CAMPAIGNS] Returning campaigns:', campaigns.length)
+      console.log('📤 [NETWORK-CAMPAIGNS] Returning offers to frontend:', campaigns.length)
+      console.log('📋 [NETWORK-CAMPAIGNS] Final offer list:', campaigns.map(c => ({
+        id: c.id,
+        name: c.name,
+        campaignId: c.campaignId,
+        status: c.status
+      })))
+      
       return NextResponse.json({ campaigns })
       
     } catch (apiError) {

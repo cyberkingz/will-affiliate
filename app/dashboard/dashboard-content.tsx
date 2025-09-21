@@ -27,7 +27,7 @@ const getDefaultFilters = (): FilterState => {
       to: now
     },
     networks: ['affluent'], // Default to Affluent network
-    campaigns: [], // Empty means ALL campaigns
+    offers: [], // Empty means ALL offers
     subIds: [] // Empty means ALL sub IDs
   }
 }
@@ -61,7 +61,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
 
   // Available filter options
   const [availableNetworks, setAvailableNetworks] = useState<Array<{ id: string; name: string }>>([])
-  const [availableCampaigns, setAvailableCampaigns] = useState<Array<{ id: string; name: string }>>([])
+  const [availableOffers, setAvailableOffers] = useState<Array<{ id: string; name: string }>>([])
   const [availableSubIds, setAvailableSubIds] = useState<string[]>([])
   const [availableOfferNames, setAvailableOfferNames] = useState<string[]>([])
   const [availableTableSubIds, setAvailableTableSubIds] = useState<string[]>([])
@@ -78,7 +78,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
           startDate: filters.dateRange.from.toISOString(),
           endDate: filters.dateRange.to.toISOString(),
           networks: filters.networks,
-          campaigns: filters.campaigns,
+          offers: filters.offers,
           subIds: filters.subIds
         })
       })
@@ -97,7 +97,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
           startDate: filters.dateRange.from.toISOString(),
           endDate: filters.dateRange.to.toISOString(),
           networks: filters.networks,
-          campaigns: filters.campaigns,
+          offers: filters.offers,
           subIds: filters.subIds,
           tableFilters: tableFilters
         })
@@ -116,7 +116,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
           startDate: filters.dateRange.from.toISOString(),
           endDate: filters.dateRange.to.toISOString(),
           networks: filters.networks,
-          campaigns: filters.campaigns,
+          offers: filters.offers,
           subIds: filters.subIds,
           tableFilters: tableFilters
         })
@@ -135,10 +135,10 @@ export function DashboardContent({ user }: DashboardContentProps) {
       if (filtersResponse.ok) {
         const filtersData = await filtersResponse.json()
         console.log('📋 [FRONTEND] Filters data received:', filtersData)
-        console.log('🎯 [FRONTEND] Available campaigns:', filtersData.campaigns)
+        console.log('🎯 [FRONTEND] Available offers:', filtersData.campaigns)
         
         setAvailableNetworks(filtersData.networks)
-        setAvailableCampaigns(filtersData.campaigns)
+        setAvailableOffers(filtersData.campaigns)
         setAvailableSubIds(filtersData.subIds)
         
         // Set table filter options
@@ -184,7 +184,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
             filters={filters}
             onFiltersChange={setFilters}
             availableNetworks={availableNetworks}
-            availableCampaigns={availableCampaigns}
+            availableOffers={availableOffers}
             availableSubIds={availableSubIds}
             isLoading={isLoading}
           />

@@ -27,7 +27,7 @@ export interface FilterState {
     to: Date
   }
   networks: string[]
-  campaigns: string[]
+  offers: string[]  // Changed from campaigns to offers
   subIds: string[]
 }
 
@@ -35,7 +35,7 @@ interface FilterPanelProps {
   filters: FilterState
   onFiltersChange: (filters: FilterState) => void
   availableNetworks: Array<{ id: string; name: string }>
-  availableCampaigns: Array<{ id: string; name: string }>
+  availableOffers: Array<{ id: string; name: string }>
   availableSubIds: string[]
   isLoading?: boolean
 }
@@ -44,48 +44,73 @@ export function FilterPanel({
   filters,
   onFiltersChange,
   availableNetworks,
-  availableCampaigns,
+  availableOffers,
   availableSubIds,
   isLoading = false
 }: FilterPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [networkCampaigns, setNetworkCampaigns] = useState<Array<{ id: string; name: string }>>([])
-  const [loadingCampaigns, setLoadingCampaigns] = useState(false)
+  const [networkOffers, setNetworkOffers] = useState<Array<{ id: string; name: string }>>([])
+  const [loadingOffers, setLoadingOffers] = useState(false)
 
   const updateFilters = (updates: Partial<FilterState>) => {
     onFiltersChange({ ...filters, ...updates })
   }
 
-  const fetchCampaignsForNetwork = async (networkId: string) => {
-    console.log('🎯 [FILTER-PANEL] Fetching campaigns for network:', networkId)
-    setLoadingCampaigns(true)
+  const fetchOffersForNetwork = async (networkId: string) => {
+    console.log('🎯 [FILTER-PANEL] Starting to fetch offers for network:', networkId)
+    console.log('🔧 [FILTER-PANEL] Setting loading state to true...')
+    setLoadingOffers(true)
     
     try {
       const response = await fetch(`/api/network-campaigns?network=${networkId}`)
       if (response.ok) {
         const data = await response.json()
-        console.log('📥 [FILTER-PANEL] Campaigns received:', data.campaigns?.length || 0)
-        setNetworkCampaigns(data.campaigns || [])
+        console.log('📥 [FILTER-PANEL] Offers received:', data.campaigns?.length || 0)
+        console.log('🔍 [FILTER-PANEL] Full API response data:', data)
+        console.log('📋 [FILTER-PANEL] Individual offers:', data.campaigns)
+        
+        // Log structure of first offer to understand data format
+        if (data.campaigns && data.campaigns.length > 0) {
+          console.log('🎯 [FILTER-PANEL] First offer structure:', data.campaigns[0])
+          console.log('📊 [FILTER-PANEL] All offer IDs and names:')
+          data.campaigns.forEach((offer, index) => {
+            console.log(`  ${index + 1}. ID: ${offer.id}, Name: ${offer.name}, Campaign ID: ${offer.campaignId || 'N/A'}`)
+          })
+        }
+        
+        setNetworkOffers(data.campaigns || [])
       } else {
-        console.error('❌ [FILTER-PANEL] Failed to fetch campaigns:', response.status)
-        setNetworkCampaigns([])
+        console.error('❌ [FILTER-PANEL] Failed to fetch offers:', response.status)
+        setNetworkOffers([])
       }
     } catch (error) {
-      console.error('❌ [FILTER-PANEL] Error fetching campaigns:', error)
-      setNetworkCampaigns([])
+      console.error('❌ [FILTER-PANEL] Error fetching offers:', error)
+      setNetworkOffers([])
     } finally {
-      setLoadingCampaigns(false)
+      setLoadingOffers(false)
     }
   }
 
-  // Fetch campaigns when Affluent network is selected (default)
+  // Fetch offers when Affluent network is selected (default)
   React.useEffect(() => {
+    console.log('🔄 [FILTER-PANEL] Networks changed:', filters.networks)
     if (filters.networks.includes('affluent')) {
-      fetchCampaignsForNetwork('affluent')
+      console.log('✅ [FILTER-PANEL] Affluent network found, fetching offers...')
+      fetchOffersForNetwork('affluent')
     } else {
-      setNetworkCampaigns([])
+      console.log('❌ [FILTER-PANEL] Affluent network not found, clearing offers')
+      setNetworkOffers([])
     }
   }, [filters.networks])
+
+  // Also fetch on component mount if affluent is already selected
+  React.useEffect(() => {
+    console.log('🚀 [FILTER-PANEL] Component mounted, initial networks:', filters.networks)
+    if (filters.networks.includes('affluent')) {
+      console.log('✅ [FILTER-PANEL] Affluent network already selected on mount, fetching offers...')
+      fetchOffersForNetwork('affluent')
+    }
+  }, [])
 
   const applyTemplate = (templateId: string) => {
     const dateRange = applyDateTemplate(templateId)
@@ -101,14 +126,14 @@ export function FilterPanel({
         to: new Date()
       },
       networks: [],
-      campaigns: [],
+      offers: [],
       subIds: []
     })
   }
 
   const activeFiltersCount = 
     filters.networks.length + 
-    filters.campaigns.length + 
+    filters.offers.length + 
     filters.subIds.length
 
   return (
@@ -291,45 +316,45 @@ export function FilterPanel({
             ) : (
               <>
                 <Select
-                  disabled={isLoading || loadingCampaigns}
+                  disabled={isLoading || loadingOffers}
                   onValueChange={(value) => {
-                    if (value && !filters.campaigns.includes(value)) {
+                    if (value && !filters.offers.includes(value)) {
                       updateFilters({
-                        campaigns: [...filters.campaigns, value]
+                        offers: [...filters.offers, value]
                       })
                     }
                   }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={
-                      loadingCampaigns ? "Loading offers..." : 
-                      networkCampaigns.length === 0 ? "No offers found" :
+                      loadingOffers ? "Loading offers..." : 
+                      networkOffers.length === 0 ? "No offers found" :
                       "Select offers..."
                     } />
                   </SelectTrigger>
                   <SelectContent>
-                    {networkCampaigns.map((campaign) => (
-                      <SelectItem key={campaign.id} value={campaign.id}>
-                        {campaign.name}
+                    {networkOffers.map((offer) => (
+                      <SelectItem key={offer.id} value={offer.id}>
+                        {offer.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 
-                {filters.campaigns.length > 0 && (
+                {filters.offers.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {filters.campaigns.map((campaignId) => {
-                      const campaign = networkCampaigns.find(c => c.id === campaignId)
+                    {filters.offers.map((offerId) => {
+                      const offer = networkOffers.find(c => c.id === offerId)
                       return (
                         <Badge
-                          key={campaignId}
+                          key={offerId}
                           variant="secondary"
                           className="text-xs cursor-pointer"
                           onClick={() => updateFilters({
-                            campaigns: filters.campaigns.filter(id => id !== campaignId)
+                            offers: filters.offers.filter(id => id !== offerId)
                           })}
                         >
-                          {campaign?.name || campaignId} ×
+                          {offer?.name || offerId} ×
                         </Badge>
                       )
                     })}
