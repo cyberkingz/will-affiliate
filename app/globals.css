@@ -120,3 +120,233 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Sophisticated loading animations for affiliate dashboard */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-data {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes loading-dots {
+  0%, 20% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  80%, 100% {
+    opacity: 0.2;
+  }
+}
+
+/* Progress bar smooth transitions */
+.progress-smooth {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced chart loading skeleton styles */
+.chart-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-skeleton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+/* Sophisticated loading animations for WillAffiliate */
+@keyframes phase-progress {
+  0% {
+    transform: scaleX(0);
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes network-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes error-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes success-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-4px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes sophisticated-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Loading state utilities */
+.loading-phase-1 {
+  animation: phase-progress 0.8s ease-out;
+}
+
+.loading-phase-2 {
+  animation: phase-progress 2s ease-out;
+}
+
+.loading-phase-3 {
+  animation: phase-progress 0.8s ease-out;
+}
+
+.loading-phase-4 {
+  animation: phase-progress 0.4s ease-out;
+}
+
+.network-indicator {
+  animation: network-pulse 2s ease-in-out infinite;
+}
+
+.error-state {
+  animation: error-shake 0.5s ease-in-out;
+}
+
+.success-state {
+  animation: success-bounce 0.6s ease-out;
+}
+
+.sophisticated-bg {
+  background: linear-gradient(
+    -45deg,
+    rgba(59, 130, 246, 0.05),
+    rgba(139, 92, 246, 0.05),
+    rgba(236, 72, 153, 0.05),
+    rgba(59, 130, 246, 0.05)
+  );
+  background-size: 400% 400%;
+  animation: sophisticated-gradient 8s ease infinite;
+}
+
+/* Micro-interactions for loading components */
+.loading-step:hover {
+  transform: translateX(2px);
+  transition: transform 0.2s ease;
+}
+
+.progress-bar-enhanced {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-enhanced::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: progress-shimmer 2s infinite;
+}
+
+@keyframes progress-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Chart entrance animations */
+.chart-enter {
+  animation: chart-slide-up 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes chart-slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Enhanced tooltip animations */
+.tooltip-enter {
+  animation: tooltip-appear 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes tooltip-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

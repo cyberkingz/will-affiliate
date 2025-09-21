@@ -217,7 +217,12 @@ export function DashboardContent({ user }: DashboardContentProps) {
           <KPICards data={kpiData} isLoading={isLoading} />
 
           {/* Trends Chart */}
-          <TrendsChart data={trendData} isLoading={isLoading} />
+          <TrendsChart 
+            data={trendData} 
+            isLoading={isLoading}
+            dateRange={filters.dateRange}
+            networks={filters.networks}
+          />
 
           {/* Table Filters */}
           <TableFilters
