@@ -45,7 +45,7 @@ export const TrendsChart = React.memo(function TrendsChart({ data, isLoading = f
     return (
       <Card>
         <CardHeader>
-          <CardTitle>📊 Hourly Performance</CardTitle>
+          <CardTitle>Hourly Performance Trends</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[400px] w-full bg-neutral-800 rounded animate-pulse" />
@@ -57,7 +57,7 @@ export const TrendsChart = React.memo(function TrendsChart({ data, isLoading = f
   return (
     <Card>
       <CardHeader>
-        <CardTitle>📊 Hourly Performance</CardTitle>
+        <CardTitle>Hourly Performance Trends</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-[400px]">
@@ -131,6 +131,15 @@ export const TrendsChart = React.memo(function TrendsChart({ data, isLoading = f
                 stroke="#3b82f6"
                 strokeWidth={3}
                 name="Clicks"
+                dot={{ r: 4 }}
+              />
+              <Line
+                yAxisId="count"
+                type="monotone"
+                dataKey="conversions"
+                stroke="#10b981"
+                strokeWidth={3}
+                name="Conversions"
                 dot={{ r: 4 }}
               />
             </LineChart>

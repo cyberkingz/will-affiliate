@@ -116,7 +116,12 @@ export class AffiliateNetworkAPI {
   }
 
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<AffluentAPIResponse<T>> {
-    const url = new URL(endpoint, this.config.baseUrl)
+    // Ensure baseUrl ends without trailing slash and endpoint starts with slash
+    const baseUrl = this.config.baseUrl.endsWith('/') 
+      ? this.config.baseUrl.slice(0, -1) 
+      : this.config.baseUrl
+    const fullEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+    const url = new URL(`${baseUrl}${fullEndpoint}`)
     
     // Add authentication parameters
     url.searchParams.append('affiliate_id', this.config.affiliateId)
