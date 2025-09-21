@@ -121,16 +121,16 @@ export async function GET(request: NextRequest) {
     let uniqueSubIds = []
     
     try {
-      // Get clicks from a broader date range to find sub IDs
+      // Get clicks from current month to find sub IDs (month-to-date)
       const endDate = new Date()
       const startDate = new Date()
-      startDate.setDate(startDate.getDate() - 90) // 90 days back
+      startDate.setDate(1) // First day of current month
       
       console.log('🚀 [FILTERS] Making API call to getClicks for sub IDs...')
       const clicksResponse = await api.getClicks({
         start_date: startDate.toISOString().split('T')[0],
         end_date: endDate.toISOString().split('T')[0],
-        row_limit: 1000
+        row_limit: 10000
       })
       
       console.log('📥 [FILTERS] Clicks API Response:', {
@@ -141,14 +141,29 @@ export async function GET(request: NextRequest) {
       
       if (clicksResponse.success && clicksResponse.data.length > 0) {
         console.log('✅ [FILTERS] Processing clicks data for sub IDs...')
+        console.log('📊 [FILTERS] Total clicks to process:', clicksResponse.data.length)
+        
         const subIdSet = new Set()
+        let subId1Count = 0, subId2Count = 0, subId3Count = 0, subId4Count = 0, subId5Count = 0
+        
         clicksResponse.data.forEach(click => {
-          if (click.subid_1) subIdSet.add(click.subid_1)
-          if (click.subid_2) subIdSet.add(click.subid_2)
+          if (click.subid_1) { subIdSet.add(click.subid_1); subId1Count++ }
+          if (click.subid_2) { subIdSet.add(click.subid_2); subId2Count++ }
+          if (click.subid_3) { subIdSet.add(click.subid_3); subId3Count++ }
+          if (click.subid_4) { subIdSet.add(click.subid_4); subId4Count++ }
+          if (click.subid_5) { subIdSet.add(click.subid_5); subId5Count++ }
         })
+        
         uniqueSubIds = Array.from(subIdSet).filter(Boolean)
-        console.log('🏷️ [FILTERS] Found sub IDs:', uniqueSubIds.length)
-        console.log('📋 [FILTERS] Sample sub IDs:', uniqueSubIds.slice(0, 10))
+        console.log('🏷️ [FILTERS] Sub ID statistics:', {
+          subid_1_clicks: subId1Count,
+          subid_2_clicks: subId2Count,
+          subid_3_clicks: subId3Count,
+          subid_4_clicks: subId4Count,
+          subid_5_clicks: subId5Count,
+          unique_subids: uniqueSubIds.length
+        })
+        console.log('📋 [FILTERS] All unique sub IDs found:', uniqueSubIds)
       } else {
         console.log('⚠️ [FILTERS] No clicks data returned from API')
       }
@@ -160,10 +175,9 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    // If no sub IDs found from API, provide defaults
+    // Only use real sub IDs from API data - no fallbacks
     if (uniqueSubIds.length === 0) {
-      console.log('🔄 [FILTERS] Using default sub IDs')
-      uniqueSubIds = ['aug301', 'test123', 'mobile', 'desktop', 'email', 'social']
+      console.log('🔄 [FILTERS] No clicks found in API - returning empty sub IDs (real data only)')
     }
 
     const response = {

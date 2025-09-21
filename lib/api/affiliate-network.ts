@@ -264,8 +264,11 @@ export class AffiliateNetworkAPI {
     return this.makeRequest<any>('/Offers/Campaign', params)
   }
 
-  async getPerformanceSummary(): Promise<AffluentAPIResponse<any>> {
-    return this.makeRequest<any>('/Reports/PerformanceSummary')
+  async getPerformanceSummary(params: {
+    date: string
+    currency_id?: number
+  }): Promise<AffluentAPIResponse<any>> {
+    return this.makeRequest<any>('/Reports/PerformanceSummary', params)
   }
 }
 

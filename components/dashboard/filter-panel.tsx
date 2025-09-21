@@ -364,6 +364,60 @@ export function FilterPanel({
             )}
           </div>
 
+          {/* Sub IDs */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Sub IDs</label>
+            <p className="text-xs text-neutral-400">
+              Filter by specific sub IDs from your campaigns
+            </p>
+            {availableSubIds.length === 0 ? (
+              <div className="p-3 bg-neutral-800 rounded-lg border text-sm text-neutral-400">
+                No sub IDs found for the current date range
+              </div>
+            ) : (
+              <>
+                <Select
+                  disabled={isLoading}
+                  onValueChange={(value) => {
+                    if (value && !filters.subIds.includes(value)) {
+                      updateFilters({
+                        subIds: [...filters.subIds, value]
+                      })
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sub IDs..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSubIds.map((subId) => (
+                      <SelectItem key={subId} value={subId}>
+                        {subId}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {filters.subIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {filters.subIds.map((subId) => (
+                      <Badge
+                        key={subId}
+                        variant="secondary"
+                        className="text-xs cursor-pointer"
+                        onClick={() => updateFilters({
+                          subIds: filters.subIds.filter(id => id !== subId)
+                        })}
+                      >
+                        {subId} ×
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
           <div className="flex justify-between pt-2">
             <Button variant="outline" size="sm" onClick={clearFilters}>
               Clear All
