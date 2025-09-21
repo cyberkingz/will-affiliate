@@ -28,14 +28,14 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
       label: "Dashboard",
       href: "/dashboard",
       icon: (
-        <LayoutDashboard className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+        <LayoutDashboard className="text-neutral-300 h-5 w-5 flex-shrink-0" />
       ),
     },
     {
       label: "Analytics",
       href: "/dashboard",
       icon: (
-        <BarChart3 className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+        <BarChart3 className="text-neutral-300 h-5 w-5 flex-shrink-0" />
       ),
     },
   ]
@@ -47,7 +47,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
         label: "Connections",
         href: "/admin/connections",
         icon: (
-          <Network className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+          <Network className="text-neutral-300 h-5 w-5 flex-shrink-0" />
         ),
       }
     )
@@ -57,7 +57,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
     label: "Settings",
     href: "/settings",
     icon: (
-      <Settings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <Settings className="text-neutral-300 h-5 w-5 flex-shrink-0" />
     ),
   })
 
@@ -68,11 +68,9 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
   }
 
   return (
-    <div className={cn(
-      "flex flex-col md:flex-row bg-neutral-950 w-full flex-1 min-h-screen overflow-hidden"
-    )}>
+    <div className="flex h-screen bg-neutral-950 overflow-hidden">
       <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10">
+        <SidebarBody className="justify-between gap-10 h-full">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
             {open ? <Logo /> : <LogoIcon />}
             <div className="mt-8 flex flex-col gap-2">
@@ -81,7 +79,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
               ))}
             </div>
           </div>
-          <div>
+          <div className="pb-4">
             <SidebarLink
               link={{
                 label: user.full_name || user.email,
@@ -99,13 +97,13 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
               onClick={handleLogout}
               className="flex items-center justify-start gap-2 group/sidebar py-2 w-full text-left"
             >
-              <LogOut className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+              <LogOut className="text-neutral-300 h-5 w-5 flex-shrink-0" />
               <motion.span
                 animate={{
                   display: open ? "inline-block" : "none",
                   opacity: open ? 1 : 0,
                 }}
-                className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+                className="text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
               >
                 Logout
               </motion.span>
@@ -113,8 +111,8 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
           </div>
         </SidebarBody>
       </Sidebar>
-      <div className="flex flex-1">
-        <div className="flex-1 w-full h-full bg-neutral-950">
+      <div className="flex-1 overflow-auto">
+        <div className="min-h-full bg-neutral-950">
           {children}
         </div>
       </div>

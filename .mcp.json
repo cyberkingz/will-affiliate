@@ -23,7 +23,7 @@
         "--tools=all"
       ],
       "env": {
-        "STRIPE_SECRET_KEY": "your_stripe_test_secret_key_here"
+        "STRIPE_SECRET_KEY": "${STRIPE_SECRET_KEY}"
       }
     },
     "shadcn-ui": {
@@ -31,7 +31,7 @@
       "args": [
         "@jpisnice/shadcn-ui-mcp-server",
         "--github-api-key",
-        "your_github_pat_here"
+        "${GITHUB_API_KEY}"
       ]
     },
     "supabase": {

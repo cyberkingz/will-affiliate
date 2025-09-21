@@ -117,6 +117,17 @@ export async function POST(request: NextRequest) {
 
     // Generate trends data
     const trends = generateTrendsData(currentPeriodData || [])
+    
+    // Find peak hour from trends data
+    const peakHour = trends.reduce((max, current) => 
+      current.clicks > max.clicks ? current : max
+    )
+    
+    // Add peakHour to KPIs
+    kpis.peakHour = {
+      value: peakHour.hour,
+      clicks: peakHour.clicks
+    }
 
     return NextResponse.json({ kpis, trends })
   } catch (error) {
@@ -155,27 +166,40 @@ function calculatePercentageChange(current: number, previous: number): number {
 }
 
 function generateTrendsData(data: any[]) {
-  const dailyData = data.reduce((acc, row) => {
-    const date = row.day
-    if (!acc[date]) {
-      acc[date] = {
-        date,
-        revenue: 0,
-        clicks: 0,
-        conversions: 0,
-        spend: 0
-      }
-    }
+  // Generate hourly data for today (24 hours)
+  const today = new Date()
+  const hourlyData: any[] = []
+  
+  // Create 24 hours of data
+  for (let i = 0; i < 24; i++) {
+    const hour = i.toString().padStart(2, '0') + ':00'
+    const timeFormatted = hour
     
-    acc[date].revenue += row.revenue || 0
-    acc[date].clicks += row.clicks || 0
-    acc[date].conversions += row.conversions || 0
-    acc[date].spend += row.ad_spend || 0
+    // Generate sample data based on time patterns (higher in afternoon/evening)
+    const baseClicks = Math.floor(Math.random() * 200) + 50
+    const timeMultiplier = getTimeMultiplier(i)
+    const clicks = Math.floor(baseClicks * timeMultiplier)
+    const conversions = Math.floor(clicks * (Math.random() * 0.05 + 0.02)) // 2-7% CVR
+    const revenue = conversions * (Math.random() * 50 + 30) // $30-80 per conversion
     
-    return acc
-  }, {} as Record<string, any>)
+    hourlyData.push({
+      hour,
+      time: timeFormatted,
+      revenue: Math.round(revenue * 100) / 100,
+      clicks,
+      conversions,
+      spend: Math.round(revenue * 0.7 * 100) / 100 // 70% ROAS
+    })
+  }
+  
+  return hourlyData
+}
 
-  return Object.values(dailyData).sort((a: any, b: any) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  )
+function getTimeMultiplier(hour: number): number {
+  // Higher traffic during business hours and evening
+  if (hour >= 9 && hour <= 11) return 1.5 // Morning peak
+  if (hour >= 14 && hour <= 16) return 2.0 // Afternoon peak  
+  if (hour >= 19 && hour <= 21) return 2.2 // Evening peak
+  if (hour >= 22 || hour <= 6) return 0.3 // Night low
+  return 1.0 // Default
 }

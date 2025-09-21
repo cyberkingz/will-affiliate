@@ -29,6 +29,10 @@ export interface KPIData {
     value: number // return on ad spend
     change: number
   }
+  peakHour?: {
+    value: string // hour like "21:00"
+    clicks: number // clicks at that hour
+  }
 }
 
 interface KPICardsProps {
@@ -54,53 +58,40 @@ export function KPICards({ data, isLoading = false }: KPICardsProps) {
 
   const kpiItems = [
     {
-      title: 'Revenue',
-      value: formatCurrency(data.revenue.value),
-      change: data.revenue.change,
-      icon: DollarSign,
-      color: 'text-green-600'
-    },
-    {
-      title: 'Clicks',
+      title: '👆 Total Clicks',
       value: formatNumber(data.clicks.value),
       change: data.clicks.change,
       icon: MousePointer,
       color: 'text-blue-600'
     },
     {
-      title: 'Conversions',
-      value: formatNumber(data.conversions.value),
-      change: data.conversions.change,
-      icon: Target,
-      color: 'text-purple-600'
+      title: '💰 Total Revenue',
+      value: formatCurrency(data.revenue.value),
+      change: data.revenue.change,
+      icon: DollarSign,
+      color: 'text-green-600'
     },
     {
-      title: 'CVR',
+      title: '⏰ Peak Click Hour',
+      value: data.peakHour?.value || '--',
+      change: 0,
+      icon: Target,
+      color: 'text-purple-600',
+      subtitle: data.peakHour ? `${formatNumber(data.peakHour.clicks)} clicks` : 'No data'
+    },
+    {
+      title: '📈 Conv. Rate',
       value: formatPercentage(data.cvr.value),
       change: data.cvr.change,
       icon: Percent,
       color: 'text-orange-600'
-    },
-    {
-      title: 'EPC',
-      value: formatCurrency(data.epc.value),
-      change: data.epc.change,
-      icon: Calculator,
-      color: 'text-indigo-600'
-    },
-    {
-      title: 'ROAS',
-      value: `${data.roas.value.toFixed(2)}x`,
-      change: data.roas.change,
-      icon: TrendingUp,
-      color: 'text-emerald-600'
     }
   ]
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -119,7 +110,7 @@ export function KPICards({ data, isLoading = false }: KPICardsProps) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {kpiItems.map((item, index) => {
         const Icon = item.icon
         const isPositive = item.change >= 0
@@ -135,17 +126,23 @@ export function KPICards({ data, isLoading = false }: KPICardsProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{item.value}</div>
-              <p className="text-xs text-muted-foreground flex items-center">
-                <TrendIcon 
-                  className={`mr-1 h-3 w-3 ${
-                    isPositive ? 'text-green-500' : 'text-red-500'
-                  }`} 
-                />
-                <span className={isPositive ? 'text-green-500' : 'text-red-500'}>
-                  {isPositive ? '+' : ''}{item.change.toFixed(1)}%
-                </span>
-                <span className="ml-1">vs last period</span>
-              </p>
+              {item.subtitle ? (
+                <p className="text-xs text-muted-foreground">
+                  {item.subtitle}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground flex items-center">
+                  <TrendIcon 
+                    className={`mr-1 h-3 w-3 ${
+                      isPositive ? 'text-green-500' : 'text-red-500'
+                    }`} 
+                  />
+                  <span className={isPositive ? 'text-green-500' : 'text-red-500'}>
+                    {isPositive ? '+' : ''}{item.change.toFixed(1)}%
+                  </span>
+                  <span className="ml-1">vs last period</span>
+                </p>
+              )}
             </CardContent>
           </Card>
         )

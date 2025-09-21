@@ -5,7 +5,8 @@ import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { FilterPanel, FilterState } from '@/components/dashboard/filter-panel'
 import { KPICards, KPIData } from '@/components/dashboard/kpi-cards'
 import { TrendsChart, TrendData } from '@/components/dashboard/trends-chart'
-import { CampaignsTable, CampaignTableData } from '@/components/dashboard/campaigns-table'
+import { ClicksTable, ClickData } from '@/components/dashboard/clicks-table'
+import { ConversionsTable, ConversionData } from '@/components/dashboard/conversions-table'
 import { Database } from '@/types/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -31,11 +32,13 @@ export function DashboardContent({ user }: DashboardContentProps) {
     conversions: { value: 0, change: 0 },
     cvr: { value: 0, change: 0 },
     epc: { value: 0, change: 0 },
-    roas: { value: 0, change: 0 }
+    roas: { value: 0, change: 0 },
+    peakHour: { value: '--', clicks: 0 }
   })
 
   const [trendData, setTrendData] = useState<TrendData[]>([])
-  const [campaignData, setCampaignData] = useState<CampaignTableData[]>([])
+  const [clicksData, setClicksData] = useState<ClickData[]>([])
+  const [conversionsData, setConversionsData] = useState<ConversionData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [syncStatus, setSyncStatus] = useState({
     isActive: false,
@@ -69,8 +72,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
         setTrendData(summaryData.trends)
       }
 
-      // Fetch campaign table data
-      const tableResponse = await fetch('/api/campaigns/table', {
+      // Fetch clicks data
+      const clicksResponse = await fetch('/api/campaigns/clicks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -82,9 +85,27 @@ export function DashboardContent({ user }: DashboardContentProps) {
         })
       })
 
-      if (tableResponse.ok) {
-        const tableData = await tableResponse.json()
-        setCampaignData(tableData.campaigns)
+      if (clicksResponse.ok) {
+        const clicksResponseData = await clicksResponse.json()
+        setClicksData(clicksResponseData.clicks)
+      }
+
+      // Fetch conversions data
+      const conversionsResponse = await fetch('/api/campaigns/conversions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: filters.dateRange.from.toISOString(),
+          endDate: filters.dateRange.to.toISOString(),
+          networks: filters.networks,
+          campaigns: filters.campaigns,
+          subIds: filters.subIds
+        })
+      })
+
+      if (conversionsResponse.ok) {
+        const conversionsResponseData = await conversionsResponse.json()
+        setConversionsData(conversionsResponseData.conversions)
       }
 
       // Fetch filter options
@@ -113,10 +134,6 @@ export function DashboardContent({ user }: DashboardContentProps) {
     fetchData()
   }, [filters])
 
-  const handleCampaignClick = (campaignId: string) => {
-    // Navigate to campaign details or open modal
-    console.log('Campaign clicked:', campaignId)
-  }
 
   const handleRefresh = () => {
     fetchData()
@@ -142,12 +159,19 @@ export function DashboardContent({ user }: DashboardContentProps) {
           {/* Trends Chart */}
           <TrendsChart data={trendData} isLoading={isLoading} />
 
-          {/* Campaigns Table */}
-          <CampaignsTable 
-            data={campaignData} 
-            isLoading={isLoading}
-            onCampaignClick={handleCampaignClick}
-          />
+          {/* Data Tables */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <ClicksTable 
+              data={clicksData} 
+              isLoading={isLoading}
+              totalCount={56289}
+            />
+            <ConversionsTable 
+              data={conversionsData} 
+              isLoading={isLoading}
+              totalCount={15949}
+            />
+          </div>
         </div>
       </main>
     </DashboardLayout>
