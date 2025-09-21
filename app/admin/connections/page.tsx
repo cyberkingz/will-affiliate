@@ -1,9 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { AdminLayout } from '@/components/admin/admin-layout'
-import { NetworkConnectionsList } from '@/components/admin/network-connections-list'
-import { NetworkConnectionForm } from '@/components/admin/network-connection-form'
+
+// Lazy load admin components to reduce initial bundle size
+const NetworkConnectionsList = lazy(() => 
+  import('@/components/admin/network-connections-list').then(module => ({
+    default: module.NetworkConnectionsList
+  }))
+)
+
+const NetworkConnectionForm = lazy(() => 
+  import('@/components/admin/network-connection-form').then(module => ({
+    default: module.NetworkConnectionForm
+  }))
+)
 import {
   Dialog,
   DialogContent,
@@ -194,14 +205,20 @@ export default function ConnectionsPage() {
             </p>
           </div>
 
-          <NetworkConnectionsList
-            connections={connections}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onSync={handleSync}
-            onAdd={handleAdd}
-            isLoading={isLoading}
-          />
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          }>
+            <NetworkConnectionsList
+              connections={connections}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onSync={handleSync}
+              onAdd={handleAdd}
+              isLoading={isLoading}
+            />
+          </Suspense>
         </div>
       </main>
 
@@ -212,12 +229,18 @@ export default function ConnectionsPage() {
               {editingConnection ? 'Edit Network Connection' : 'Add Network Connection'}
             </DialogTitle>
           </DialogHeader>
-          <NetworkConnectionForm
-            connection={editingConnection}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-            isLoading={isSubmitting}
-          />
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          }>
+            <NetworkConnectionForm
+              connection={editingConnection}
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+              isLoading={isSubmitting}
+            />
+          </Suspense>
         </DialogContent>
       </Dialog>
     </AdminLayout>

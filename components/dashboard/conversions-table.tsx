@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   ColumnDef,
   flexRender,
@@ -39,7 +39,7 @@ interface ConversionsTableProps {
   totalCount?: number
 }
 
-export function ConversionsTable({ data, isLoading = false, totalCount }: ConversionsTableProps) {
+export const ConversionsTable = React.memo(function ConversionsTable({ data, isLoading = false, totalCount }: ConversionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [pageSize, setPageSize] = useState(10)
 
@@ -291,4 +291,4 @@ export function ConversionsTable({ data, isLoading = false, totalCount }: Conver
       </CardContent>
     </Card>
   )
-}
+})

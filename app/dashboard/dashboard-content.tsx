@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { FilterPanel, FilterState } from '@/components/dashboard/filter-panel'
 import { KPICards, KPIData } from '@/components/dashboard/kpi-cards'
@@ -16,16 +16,18 @@ interface DashboardContentProps {
   user: User
 }
 
+const getDefaultFilters = (): FilterState => ({
+  dateRange: {
+    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+    to: new Date()
+  },
+  networks: [],
+  campaigns: [],
+  subIds: []
+})
+
 export function DashboardContent({ user }: DashboardContentProps) {
-  const [filters, setFilters] = useState<FilterState>({
-    dateRange: {
-      from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-      to: new Date()
-    },
-    networks: [],
-    campaigns: [],
-    subIds: []
-  })
+  const [filters, setFilters] = useState<FilterState>(getDefaultFilters)
 
   const [kpiData, setKpiData] = useState<KPIData>({
     revenue: { value: 0, change: 0, period: '30d' },
@@ -146,9 +148,12 @@ export function DashboardContent({ user }: DashboardContentProps) {
     }
   }
 
+  const filtersString = useMemo(() => JSON.stringify(filters), [filters])
+  const tableFiltersString = useMemo(() => JSON.stringify(tableFilters), [tableFilters])
+
   useEffect(() => {
     fetchData()
-  }, [filters, tableFilters])
+  }, [filtersString, tableFiltersString])
 
 
   const handleRefresh = () => {

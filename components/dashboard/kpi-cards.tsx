@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrendingUp, TrendingDown, DollarSign, MousePointer, Target, Percent, Calculator } from 'lucide-react'
 
@@ -40,17 +41,19 @@ interface KPICardsProps {
   isLoading?: boolean
 }
 
-export function KPICards({ data, isLoading = false }: KPICardsProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
+export const KPICards = React.memo(function KPICards({ data, isLoading = false }: KPICardsProps) {
+  const formatCurrency = React.useMemo(() => 
+    new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(value)
-  }
+    }),
+    []
+  )
 
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('en-US').format(value)
-  }
+  const formatNumber = React.useMemo(() => 
+    new Intl.NumberFormat('en-US'),
+    []
+  )
 
   const formatPercentage = (value: number) => {
     return `${value.toFixed(2)}%`
@@ -59,14 +62,14 @@ export function KPICards({ data, isLoading = false }: KPICardsProps) {
   const kpiItems = [
     {
       title: '👆 Total Clicks',
-      value: formatNumber(data.clicks.value),
+      value: formatNumber.format(data.clicks.value),
       change: data.clicks.change,
       icon: MousePointer,
       color: 'text-blue-600'
     },
     {
       title: '💰 Total Revenue',
-      value: formatCurrency(data.revenue.value),
+      value: formatCurrency.format(data.revenue.value),
       change: data.revenue.change,
       icon: DollarSign,
       color: 'text-green-600'
@@ -77,7 +80,7 @@ export function KPICards({ data, isLoading = false }: KPICardsProps) {
       change: 0,
       icon: Target,
       color: 'text-purple-600',
-      subtitle: data.peakHour ? `${formatNumber(data.peakHour.clicks)} clicks` : 'No data'
+      subtitle: data.peakHour ? `${formatNumber.format(data.peakHour.clicks)} clicks` : 'No data'
     },
     {
       title: '📈 Conv. Rate',
@@ -149,4 +152,4 @@ export function KPICards({ data, isLoading = false }: KPICardsProps) {
       })}
     </div>
   )
-}
+})

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -26,7 +26,7 @@ interface TableFiltersProps {
   availableSubIds2?: string[]
 }
 
-export function TableFilters({ 
+export const TableFilters = React.memo(function TableFilters({ 
   filters, 
   onFiltersChange, 
   availableOfferNames = [],
@@ -143,4 +143,4 @@ export function TableFilters({
       </CardContent>
     </Card>
   )
-}
+})

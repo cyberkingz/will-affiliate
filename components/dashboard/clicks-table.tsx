@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   ColumnDef,
   flexRender,
@@ -38,7 +38,7 @@ interface ClicksTableProps {
   totalCount?: number
 }
 
-export function ClicksTable({ data, isLoading = false, totalCount }: ClicksTableProps) {
+export const ClicksTable = React.memo(function ClicksTable({ data, isLoading = false, totalCount }: ClicksTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [pageSize, setPageSize] = useState(10)
 
@@ -264,4 +264,4 @@ export function ClicksTable({ data, isLoading = false, totalCount }: ClicksTable
       </CardContent>
     </Card>
   )
-}
+})

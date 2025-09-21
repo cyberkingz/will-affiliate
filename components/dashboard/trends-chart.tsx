@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { 
   LineChart, 
@@ -26,17 +27,19 @@ interface TrendsChartProps {
   isLoading?: boolean
 }
 
-export function TrendsChart({ data, isLoading = false }: TrendsChartProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
+export const TrendsChart = React.memo(function TrendsChart({ data, isLoading = false }: TrendsChartProps) {
+  const formatCurrency = React.useMemo(() => 
+    new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(value)
-  }
+    }),
+    []
+  )
 
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('en-US').format(value)
-  }
+  const formatNumber = React.useMemo(() => 
+    new Intl.NumberFormat('en-US'),
+    []
+  )
 
   if (isLoading) {
     return (
@@ -80,13 +83,13 @@ export function TrendsChart({ data, isLoading = false }: TrendsChartProps) {
                 yAxisId="currency"
                 orientation="left"
                 tick={{ fontSize: 12 }}
-                tickFormatter={(value) => formatCurrency(value)}
+                tickFormatter={(value) => formatCurrency.format(value)}
               />
               <YAxis 
                 yAxisId="count"
                 orientation="right"
                 tick={{ fontSize: 12 }}
-                tickFormatter={(value) => formatNumber(value)}
+                tickFormatter={(value) => formatNumber.format(value)}
               />
               <Tooltip
                 content={({ active, payload, label }) => {
@@ -100,8 +103,8 @@ export function TrendsChart({ data, isLoading = false }: TrendsChartProps) {
                           <p key={index} className="text-sm text-neutral-200" style={{ color: entry.color }}>
                             {entry.name}: {
                               entry.dataKey === 'revenue' || entry.dataKey === 'spend'
-                                ? formatCurrency(entry.value as number)
-                                : formatNumber(entry.value as number)
+                                ? formatCurrency.format(entry.value as number)
+                                : formatNumber.format(entry.value as number)
                             }
                           </p>
                         ))}
@@ -136,4 +139,4 @@ export function TrendsChart({ data, isLoading = false }: TrendsChartProps) {
       </CardContent>
     </Card>
   )
-}
+})

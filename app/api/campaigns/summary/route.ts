@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,21 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { startDate, endDate, networks, campaigns, subIds } = body
+
+    // Check cache first
+    const cacheKey = createCacheKey('summary', { 
+      userId: user.id, 
+      startDate, 
+      endDate, 
+      networks, 
+      campaigns, 
+      subIds 
+    })
+    
+    const cachedData = apiCache.get(cacheKey)
+    if (cachedData) {
+      return NextResponse.json(cachedData)
+    }
 
     // Get user's accessible networks
     const { data: userNetworks } = await supabase
@@ -129,7 +145,12 @@ export async function POST(request: NextRequest) {
       clicks: peakHour.clicks
     }
 
-    return NextResponse.json({ kpis, trends })
+    const responseData = { kpis, trends }
+    
+    // Cache the response for 2 minutes
+    apiCache.set(cacheKey, responseData, 2)
+
+    return NextResponse.json(responseData)
   } catch (error) {
     console.error('Error generating summary:', error)
     return NextResponse.json(
