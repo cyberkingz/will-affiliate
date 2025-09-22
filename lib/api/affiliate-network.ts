@@ -56,6 +56,26 @@ export interface AffluentClickData {
   duplicate: boolean
 }
 
+export interface AffluentConversionData {
+  conversion_id: string
+  event_id: number
+  event_name: string
+  tracking_id: string
+  udid: string
+  conversion_date: string
+  offer_id: number
+  offer_name: string
+  creative_id: number
+  creative_name: string | null
+  subid_1: string
+  subid_2: string
+  subid_3: string
+  subid_4: string
+  subid_5: string
+  price: number
+  disposition: string | null
+}
+
 export interface AffluentAPIResponse<T> {
   row_count: number
   data: T[]
@@ -259,13 +279,21 @@ export class AffiliateNetworkAPI {
   async getConversions(params: {
     start_date: string
     end_date: string
-    campaign_id?: string
-    offer_id?: string
-    sub_id?: string
+    campaign_id?: number
+    offer_id?: number
+    subid_1?: string
     limit?: number
     page?: number
-  }): Promise<AffluentAPIResponse<ConversionData>> {
-    return this.makeRequest<ConversionData>('/Reports/Conversions', params)
+    start_at_row?: number
+  }): Promise<AffluentAPIResponse<AffluentConversionData>> {
+    // Set defaults for Affluent API - matching Clicks API pattern
+    const apiParams = {
+      ...params,
+      start_at_row: params.start_at_row || 1,
+      limit: params.limit || 50
+    }
+    
+    return this.makeRequest<AffluentConversionData>('/Reports/Conversions', apiParams)
   }
 
   async getHourlySummary(params: {

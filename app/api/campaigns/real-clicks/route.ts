@@ -68,22 +68,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's network connections
-    const { data: userNetworks } = await supabase
+    const { data: userNetworks, error: networkError } = await supabase
       .from('network_connections')
       .select('*')
       .eq('is_active', true)
 
+    console.log('🔍 [REAL-CLICKS] Network connections query result:', {
+      userNetworks,
+      networkError,
+      count: userNetworks?.length || 0
+    })
+
     if (!userNetworks || userNetworks.length === 0) {
-      return NextResponse.json({ clicks: [], totalCount: 0 })
+      console.log('⚠️ [REAL-CLICKS] No active network connections found, using default Affluent config')
+      // Use default Affluent configuration if no network connections
     }
 
-    // Initialize API client
-    const networkConfig = {
+    // Initialize API client - use default config if no network connections
+    const networkConfig = userNetworks && userNetworks.length > 0 ? {
       ...defaultNetworkConfig,
       affiliateId: userNetworks[0].affiliate_id || defaultNetworkConfig.affiliateId,
       apiKey: userNetworks[0].api_key || defaultNetworkConfig.apiKey,
-      baseUrl: defaultNetworkConfig.baseUrl // Use default config for now
-    }
+      baseUrl: defaultNetworkConfig.baseUrl
+    } : defaultNetworkConfig
     
     const api = new AffiliateNetworkAPI(networkConfig)
 
@@ -91,6 +98,16 @@ export async function POST(request: NextRequest) {
     const startDateISO = startDate.split('T')[0]
     const endDateISO = endDate.split('T')[0]
     const startAtRow = page > 1 ? (page - 1) * limit + 1 : 1
+    
+    console.log('📅 [REAL-CLICKS] Date processing:', {
+      receivedStartDate: startDate,
+      receivedEndDate: endDate,
+      processedStartDate: startDateISO,
+      processedEndDate: endDateISO,
+      startAtRow,
+      limit
+    })
+    
     const apiParams: ClicksRequestParams = {
       start_date: startDateISO,
       end_date: endDateISO,
@@ -117,10 +134,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch clicks from affiliate network
+    console.log('🌐 [REAL-CLICKS] Calling Affluent API with params:', apiParams)
     const clicksResponse = await api.getClicks(apiParams)
 
+    console.log('📥 [REAL-CLICKS] Affluent API response:', {
+      success: clicksResponse.success,
+      row_count: clicksResponse.row_count,
+      data_length: clicksResponse.data?.length || 0,
+      message: clicksResponse.message
+    })
+
     if (!clicksResponse.success) {
-      console.error('Failed to fetch clicks:', clicksResponse.message)
+      console.error('❌ [REAL-CLICKS] Failed to fetch clicks:', clicksResponse.message)
       return NextResponse.json({ clicks: [], totalCount: 0 })
     }
 
@@ -163,7 +188,7 @@ export async function POST(request: NextRequest) {
 
     const responseData: ClicksApiResponse = {
       clicks: filteredClicks,
-      totalCount: filteredClicks.length, // In a real implementation, this should come from the API
+      totalCount: clicksResponse.row_count, // Use API's total count
       page,
       limit,
       hasNextPage: filteredClicks.length === limit

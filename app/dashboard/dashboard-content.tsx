@@ -108,42 +108,46 @@ export function DashboardContent({ user }: DashboardContentProps) {
         setTrendData(summaryData.trends)
       }
 
-      // Fetch clicks data
-      const clicksResponse = await fetch('/api/campaigns/clicks', {
+      // Fetch real clicks data from Affluent
+      const clicksResponse = await fetch('/api/campaigns/real-clicks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           startDate: formattedStartDate,
           endDate: formattedEndDate,
           networks: filters.networks,
-          offers: filters.offers,
-          subIds: filters.subIds,
-          tableFilters: tableFilters
+          campaigns: filters.offers, // Note: API expects 'campaigns' not 'offers'
+          tableFilters: tableFilters,
+          page: 1,
+          limit: 50
         })
       })
 
       if (clicksResponse.ok) {
         const clicksResponseData = await clicksResponse.json()
-        setClicksData(clicksResponseData.clicks)
+        console.log('📊 [DASHBOARD] Clicks response:', clicksResponseData)
+        setClicksData(clicksResponseData.clicks || [])
       }
 
-      // Fetch conversions data
-      const conversionsResponse = await fetch('/api/campaigns/conversions', {
+      // Fetch real conversions data from Affluent
+      const conversionsResponse = await fetch('/api/campaigns/real-conversions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           startDate: formattedStartDate,
           endDate: formattedEndDate,
           networks: filters.networks,
-          offers: filters.offers,
-          subIds: filters.subIds,
-          tableFilters: tableFilters
+          campaigns: filters.offers, // Note: API expects 'campaigns' not 'offers'
+          tableFilters: tableFilters,
+          page: 1,
+          limit: 50
         })
       })
 
       if (conversionsResponse.ok) {
         const conversionsResponseData = await conversionsResponse.json()
-        setConversionsData(conversionsResponseData.conversions)
+        console.log('📊 [DASHBOARD] Conversions response:', conversionsResponseData)
+        setConversionsData(conversionsResponseData.conversions || [])
       }
 
       // Fetch filter options
@@ -160,10 +164,15 @@ export function DashboardContent({ user }: DashboardContentProps) {
         setAvailableOffers(filtersData.campaigns)
         setAvailableSubIds(filtersData.subIds)
         
-        // Set table filter options
-        setAvailableOfferNames(['Playful Rewards - RevShare'])
-        setAvailableTableSubIds(['aug301', ''])
-        setAvailableTableSubIds2(['aug301', ''])
+        // Set table filter options from real data
+        // Extract unique offer names from campaigns
+        const offerNames = filtersData.campaigns?.map(c => c.name).filter(Boolean) || []
+        setAvailableOfferNames([...new Set(offerNames)])
+        
+        // Use real sub IDs from the API
+        const subIds = filtersData.subIds || []
+        setAvailableTableSubIds(subIds)
+        setAvailableTableSubIds2(subIds) // Usually same sub IDs are available for both fields
       } else {
         const errorText = await filtersResponse.text()
         console.error('❌ [FRONTEND] Failed to fetch filters:', filtersResponse.status, errorText)

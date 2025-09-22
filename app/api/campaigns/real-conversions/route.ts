@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { AffiliateNetworkAPI, defaultNetworkConfig } from '@/lib/api/affiliate-network'
+import { AffiliateNetworkAPI, defaultNetworkConfig, AffluentConversionData } from '@/lib/api/affiliate-network'
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
 
 type ConversionsRequestParams = Parameters<AffiliateNetworkAPI['getConversions']>[0]
@@ -77,61 +77,92 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's network connections
-    const { data: userNetworks } = await supabase
+    const { data: userNetworks, error: networkError } = await supabase
       .from('network_connections')
       .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
+      .eq('is_active', true)
+
+    console.log('🔍 [REAL-CONVERSIONS] Network connections query result:', {
+      userNetworks,
+      networkError,
+      count: userNetworks?.length || 0
+    })
 
     if (!userNetworks || userNetworks.length === 0) {
-      return NextResponse.json({ conversions: [], totalCount: 0 })
+      console.log('⚠️ [REAL-CONVERSIONS] No active network connections found, using default Affluent config')
+      // Use default Affluent configuration if no network connections
     }
 
-    // Initialize API client
-    const networkConfig = {
+    // Initialize API client - use default config if no network connections
+    const networkConfig = userNetworks && userNetworks.length > 0 ? {
       ...defaultNetworkConfig,
       affiliateId: userNetworks[0].affiliate_id || defaultNetworkConfig.affiliateId,
       apiKey: userNetworks[0].api_key || defaultNetworkConfig.apiKey,
       baseUrl: defaultNetworkConfig.baseUrl
-    }
+    } : defaultNetworkConfig
     
     const api = new AffiliateNetworkAPI(networkConfig)
 
     // Prepare API parameters
     const startDateISO = startDate.split('T')[0]
     const endDateISO = endDate.split('T')[0]
+    const startAtRow = page > 1 ? (page - 1) * limit + 1 : 1
+    
+    console.log('📅 [REAL-CONVERSIONS] Date processing:', {
+      receivedStartDate: startDate,
+      receivedEndDate: endDate,
+      processedStartDate: startDateISO,
+      processedEndDate: endDateISO,
+      startAtRow,
+      limit
+    })
+    
     const apiParams: ConversionsRequestParams = {
       start_date: startDateISO,
       end_date: endDateISO,
       limit,
-      page
+      start_at_row: startAtRow
     }
 
-    // Add filters
+    // Add filters - fix parameter names for Affluent API
     if (campaigns.length > 0) {
-      apiParams.campaign_id = campaigns[0]
+      const campaignId = Number(campaigns[0])
+      if (Number.isFinite(campaignId)) {
+        apiParams.campaign_id = campaignId
+      }
+      console.log('🎯 [REAL-CONVERSIONS] Filtering for campaign:', campaigns[0])
+    } else {
+      console.log('📊 [REAL-CONVERSIONS] Fetching ALL campaigns data')
     }
 
     if (tableFilters?.subId) {
-      apiParams.sub_id = tableFilters.subId === 'empty' ? '' : tableFilters.subId
+      apiParams.subid_1 = tableFilters.subId === 'empty' ? '' : tableFilters.subId
     }
 
     // Fetch conversions from affiliate network
+    console.log('🌐 [REAL-CONVERSIONS] Calling Affluent API with params:', apiParams)
     const conversionsResponse = await api.getConversions(apiParams)
 
+    console.log('📥 [REAL-CONVERSIONS] Affluent API response:', {
+      success: conversionsResponse.success,
+      row_count: conversionsResponse.row_count,
+      data_length: conversionsResponse.data?.length || 0,
+      message: conversionsResponse.message
+    })
+
     if (!conversionsResponse.success) {
-      console.error('Failed to fetch conversions:', conversionsResponse.message)
+      console.error('❌ [REAL-CONVERSIONS] Failed to fetch conversions:', conversionsResponse.message)
       return NextResponse.json({ conversions: [], totalCount: 0 })
     }
 
     // Transform API response to match our interface
     const transformedConversions: ConversionRow[] = conversionsResponse.data.map(conversion => ({
-      id: conversion.conversion_id || conversion.transaction_id,
-      dateTime: conversion.datetime,
+      id: conversion.conversion_id,
+      dateTime: conversion.conversion_date, // Affluent uses "conversion_date"
       offerName: conversion.offer_name || 'Unknown Offer',
-      subId: conversion.sub_id || '',
-      subId2: conversion.sub_id_2 || '',
-      price: conversion.revenue || conversion.payout || 0
+      subId: conversion.subid_1 || '', // Affluent uses "subid_1"
+      subId2: conversion.subid_2 || '', // Affluent uses "subid_2"
+      price: conversion.price || 0 // Affluent uses "price"
     }))
 
     // Apply client-side filters if needed
@@ -162,7 +193,7 @@ export async function POST(request: NextRequest) {
 
     const responseData: ConversionsApiResponse = {
       conversions: filteredConversions,
-      totalCount: filteredConversions.length,
+      totalCount: conversionsResponse.row_count, // Use API's total count
       page,
       limit,
       hasNextPage: filteredConversions.length === limit

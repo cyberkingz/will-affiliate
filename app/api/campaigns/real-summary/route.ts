@@ -93,8 +93,7 @@ export async function POST(request: NextRequest) {
     const { data: userNetworks } = await supabase
       .from('network_connections')
       .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
+      .eq('is_active', true)
 
     if (!userNetworks || userNetworks.length === 0) {
       return NextResponse.json({
