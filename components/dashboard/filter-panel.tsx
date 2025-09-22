@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useId } from 'react'
-import { CalendarIcon, Settings2, X, Check, ChevronDown } from 'lucide-react'
+import { CalendarIcon, Settings2, X, Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -31,8 +31,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { dateTemplates, getDateRangeLabel, applyDateTemplate } from '@/lib/utils/date-templates'
+import { getDateTemplates } from '@/lib/utils/date-templates'
 
 export interface FilterState {
   dateRange: {
@@ -40,7 +39,7 @@ export interface FilterState {
     to: Date
   }
   networks: string[]
-  offers: string[]  // Changed from campaigns to offers
+  offers: string[]
   subIds: string[]
 }
 
@@ -64,9 +63,8 @@ export function FilterPanel({
   const [isEditMode, setIsEditMode] = useState(false)
   const [networkOffers, setNetworkOffers] = useState<Array<{ id: string; name: string }>>([])
   const [loadingOffers, setLoadingOffers] = useState(false)
-  const [selectedDateTemplate, setSelectedDateTemplate] = useState<string | undefined>()
   
-  // Generate stable IDs for accessibility
+  const templates = getDateTemplates()
   const dateRangeId = useId()
   const networkId = useId()
   const offersId = useId()
@@ -75,17 +73,6 @@ export function FilterPanel({
   const updateFilters = (updates: Partial<FilterState>) => {
     onFiltersChange({ ...filters, ...updates })
   }
-
-  // Check if current date range matches any template
-  React.useEffect(() => {
-    const matchingTemplate = dateTemplates.find(template => {
-      const templateRange = template.getValue()
-      const isSameFrom = Math.abs(templateRange.from.getTime() - filters.dateRange.from.getTime()) < 1000
-      const isSameTo = Math.abs(templateRange.to.getTime() - filters.dateRange.to.getTime()) < 1000
-      return isSameFrom && isSameTo
-    })
-    setSelectedDateTemplate(matchingTemplate?.id)
-  }, [filters.dateRange])
 
   const fetchOffersForNetwork = async (networkId: string) => {
     setLoadingOffers(true)
@@ -105,10 +92,8 @@ export function FilterPanel({
     }
   }
 
-  // Fetch offers when networks change
   React.useEffect(() => {
     if (filters.networks.length > 0) {
-      // For now, fetch for the first selected network
       fetchOffersForNetwork(filters.networks[0])
     } else {
       setNetworkOffers([])
@@ -116,17 +101,16 @@ export function FilterPanel({
   }, [filters.networks])
 
   const applyTemplate = (templateId: string) => {
-    const dateRange = applyDateTemplate(templateId)
-    if (dateRange) {
+    const template = templates.find(t => t.id === templateId)
+    if (template) {
+      const dateRange = template.getValue()
       updateFilters({ dateRange })
-      setSelectedDateTemplate(templateId)
     }
   }
 
   const handleDateRangeSelect = (range: DateRange | undefined) => {
     if (range?.from && range?.to) {
       updateFilters({ dateRange: { from: range.from, to: range.to } })
-      setSelectedDateTemplate(undefined) // Clear template selection for custom range
     }
   }
 
@@ -166,14 +150,13 @@ export function FilterPanel({
   const clearFilters = () => {
     onFiltersChange({
       dateRange: {
-        from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+        from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
         to: new Date()
       },
       networks: [],
       offers: [],
       subIds: []
     })
-    setSelectedDateTemplate(undefined)
   }
 
   const activeFiltersCount = 
@@ -181,44 +164,73 @@ export function FilterPanel({
     filters.offers.length + 
     filters.subIds.length
 
-  const currentDateRangeLabel = getDateRangeLabel(filters.dateRange.from, filters.dateRange.to)
-
   return (
     <div className="space-y-4">
-      {/* Filter Chips Toolbar - Always Visible */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Date Range Chip */}
+        {/* Simple Date Range Picker */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="h-8 text-xs font-normal border-dashed"
-              aria-label={`Date range: ${currentDateRangeLabel}. Click to change date range.`}
-              aria-describedby={dateRangeId}
+            <Button
+              variant="outline"
+              className="h-8 justify-start text-left font-normal"
             >
-              <CalendarIcon className="h-3 w-3 mr-1" />
-              {currentDateRangeLabel}
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {filters.dateRange?.from ? (
+                filters.dateRange.to ? (
+                  <>
+                    {format(filters.dateRange.from, "LLL dd, y")} -{" "}
+                    {format(filters.dateRange.to, "LLL dd, y")}
+                  </>
+                ) : (
+                  format(filters.dateRange.from, "LLL dd, y")
+                )
+              ) : (
+                <span>Pick a date</span>
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <div className="p-3">
-              <Calendar
-                mode="range"
-                defaultMonth={filters.dateRange.from}
-                selected={{
-                  from: filters.dateRange.from,
-                  to: filters.dateRange.to,
-                }}
-                onSelect={handleDateRangeSelect}
-                numberOfMonths={2}
-                aria-label="Select date range"
-              />
+            <div className="p-3 border-b">
+              <div className="text-sm font-medium mb-2">Quick Select</div>
+              <div className="grid grid-cols-2 gap-2">
+                {templates.filter(t => t.category === 'quick').slice(0, 4).map((template) => (
+                  <Button
+                    key={template.id}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs justify-start"
+                    onClick={() => applyTemplate(template.id)}
+                  >
+                    {template.label}
+                  </Button>
+                ))}
+              </div>
             </div>
+            <Calendar
+              mode="range"
+              defaultMonth={filters.dateRange?.from}
+              selected={filters.dateRange}
+              onSelect={handleDateRangeSelect}
+              numberOfMonths={2}
+              classNames={{
+                weekdays: "flex w-full",
+                weekday: "text-muted-foreground text-xs font-medium w-full text-center p-2",
+                week: "flex w-full mt-1",
+                day: "text-center p-0 relative w-full h-full hover:bg-accent hover:text-accent-foreground rounded-md transition-colors",
+                table: "w-full border-collapse space-y-1",
+                range_start: "bg-primary text-primary-foreground rounded-l-md hover:bg-primary/90",
+                range_end: "bg-primary text-primary-foreground rounded-r-md hover:bg-primary/90",
+                range_middle: "bg-accent/50 text-accent-foreground rounded-none hover:bg-accent/70",
+                selected: "bg-primary text-primary-foreground hover:bg-primary/90",
+                today: "bg-accent text-accent-foreground font-semibold",
+                outside: "text-muted-foreground opacity-50",
+                disabled: "text-muted-foreground opacity-30 cursor-not-allowed"
+              }}
+            />
           </PopoverContent>
         </Popover>
         
-        {/* Network Filter Chips */}
+        {/* Filter Chips */}
         {filters.networks.map((networkId) => {
           const network = availableNetworks.find(n => n.id === networkId)
           return (
@@ -233,7 +245,6 @@ export function FilterPanel({
                 size="sm"
                 className="h-auto p-0.5 hover:bg-transparent"
                 onClick={() => removeFilter('networks', networkId)}
-                aria-label={`Remove ${network?.name || networkId} filter`}
               >
                 <X className="h-3 w-3" />
               </Button>
@@ -241,7 +252,6 @@ export function FilterPanel({
           )
         })}
         
-        {/* Offer Filter Chips */}
         {filters.offers.map((offerId) => {
           const offer = [...availableOffers, ...networkOffers].find(o => o.id === offerId)
           return (
@@ -256,7 +266,6 @@ export function FilterPanel({
                 size="sm"
                 className="h-auto p-0.5 hover:bg-transparent"
                 onClick={() => removeFilter('offers', offerId)}
-                aria-label={`Remove ${offer?.name || offerId} filter`}
               >
                 <X className="h-3 w-3" />
               </Button>
@@ -264,7 +273,6 @@ export function FilterPanel({
           )
         })}
         
-        {/* Sub ID Filter Chips */}
         {filters.subIds.map((subId) => (
           <Badge 
             key={subId} 
@@ -277,7 +285,6 @@ export function FilterPanel({
               size="sm"
               className="h-auto p-0.5 hover:bg-transparent"
               onClick={() => removeFilter('subIds', subId)}
-              aria-label={`Remove ${subId} filter`}
             >
               <X className="h-3 w-3" />
             </Button>
@@ -291,8 +298,6 @@ export function FilterPanel({
               variant="outline" 
               size="sm"
               className="h-8 text-xs font-normal"
-              aria-expanded={isEditMode}
-              aria-controls="filter-editor"
             >
               <Settings2 className="h-3 w-3 mr-1" />
               Edit Filters
@@ -303,131 +308,20 @@ export function FilterPanel({
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent id="filter-editor" className="sm:max-w-md">
-            <SheetHeader>
+          <SheetContent className="sm:max-w-md flex flex-col h-full">
+            <SheetHeader className="shrink-0">
               <SheetTitle>Edit Filters</SheetTitle>
               <SheetDescription>
                 Configure your dashboard filters to focus on specific data.
               </SheetDescription>
             </SheetHeader>
             
-            <div className="py-6 space-y-6">
-              {/* Date Range Section */}
+            <div className="flex-1 overflow-y-auto py-6 space-y-6">
+              {/* Networks */}
               <div className="space-y-3">
-                <Label className="text-sm font-medium" id={dateRangeId}>
-                  Date Range
-                </Label>
-                <p className="text-xs text-muted-foreground" aria-describedby={dateRangeId}>
-                  Choose a date range for your data analysis
-                </p>
-                
-                {/* Quick Date Templates */}
-                <div className="space-y-3">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Quick Select
-                  </Label>
-                  <ToggleGroup 
-                    type="single" 
-                    value={selectedDateTemplate}
-                    onValueChange={(value) => value && applyTemplate(value)}
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    {dateTemplates.slice(0, 6).map((template) => (
-                      <ToggleGroupItem
-                        key={template.id}
-                        value={template.id}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-8 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-                        aria-pressed={selectedDateTemplate === template.id}
-                      >
-                        {template.label}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                  
-                  {/* More Templates */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="w-full text-xs h-8"
-                      >
-                        More Options
-                        <ChevronDown className="h-3 w-3 ml-1" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-48 p-1">
-                      <div className="grid gap-1">
-                        {dateTemplates.slice(6).map((template) => (
-                          <Button
-                            key={template.id}
-                            variant="ghost"
-                            size="sm"
-                            className="justify-start text-xs h-8 font-normal"
-                            onClick={() => applyTemplate(template.id)}
-                          >
-                            {template.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* Custom Date Range */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Custom Range
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal text-sm h-9"
-                        disabled={isLoading}
-                        aria-label="Select custom date range"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {filters.dateRange.from ? (
-                          filters.dateRange.to ? (
-                            `${format(filters.dateRange.from, "MMM d, y")} - ${format(filters.dateRange.to, "MMM d, y")}`
-                          ) : (
-                            format(filters.dateRange.from, "MMM d, y")
-                          )
-                        ) : (
-                          "Pick a date range"
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="range"
-                        defaultMonth={filters.dateRange.from}
-                        selected={{
-                          from: filters.dateRange.from,
-                          to: filters.dateRange.to,
-                        }}
-                        onSelect={handleDateRangeSelect}
-                        numberOfMonths={2}
-                        aria-label="Select date range"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-              
-              <Separator />
-
-              {/* Networks Section */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium" id={networkId}>
+                <Label className="text-sm font-medium">
                   Networks
                 </Label>
-                <p className="text-xs text-muted-foreground" aria-describedby={networkId}>
-                  Select the affiliate networks to include in your analysis
-                </p>
                 
                 {availableNetworks.length === 0 ? (
                   <div className="p-3 text-sm text-muted-foreground border rounded-md">
@@ -436,7 +330,7 @@ export function FilterPanel({
                 ) : (
                   <Command className="border rounded-md">
                     <CommandInput placeholder="Search networks..." className="h-9" />
-                    <CommandList className="max-h-48">
+                    <CommandList className="max-h-32">
                       <CommandEmpty>No networks found.</CommandEmpty>
                       <CommandGroup>
                         {availableNetworks.map((network) => (
@@ -448,7 +342,6 @@ export function FilterPanel({
                             <Checkbox
                               checked={filters.networks.includes(network.id)}
                               onChange={() => toggleNetwork(network.id)}
-                              aria-label={`${filters.networks.includes(network.id) ? 'Unselect' : 'Select'} ${network.name}`}
                             />
                             <span className="flex-1">{network.name}</span>
                             {filters.networks.includes(network.id) && (
@@ -464,14 +357,11 @@ export function FilterPanel({
               
               <Separator />
 
-              {/* Offers Section */}
+              {/* Offers */}
               <div className="space-y-3">
-                <Label className="text-sm font-medium" id={offersId}>
+                <Label className="text-sm font-medium">
                   Offers
                 </Label>
-                <p className="text-xs text-muted-foreground" aria-describedby={offersId}>
-                  Select specific offers to analyze performance
-                </p>
                 
                 {filters.networks.length === 0 ? (
                   <div className="p-3 text-sm text-muted-foreground border rounded-md">
@@ -484,7 +374,7 @@ export function FilterPanel({
                 ) : (
                   <Command className="border rounded-md">
                     <CommandInput placeholder="Search offers..." className="h-9" />
-                    <CommandList className="max-h-48">
+                    <CommandList className="max-h-32">
                       <CommandEmpty>No offers found.</CommandEmpty>
                       <CommandGroup>
                         {[...availableOffers, ...networkOffers].map((offer) => (
@@ -496,7 +386,6 @@ export function FilterPanel({
                             <Checkbox
                               checked={filters.offers.includes(offer.id)}
                               onChange={() => toggleOffer(offer.id)}
-                              aria-label={`${filters.offers.includes(offer.id) ? 'Unselect' : 'Select'} ${offer.name}`}
                             />
                             <span className="flex-1">{offer.name}</span>
                             {filters.offers.includes(offer.id) && (
@@ -512,14 +401,11 @@ export function FilterPanel({
               
               <Separator />
 
-              {/* Sub IDs Section */}
+              {/* Sub IDs */}
               <div className="space-y-3">
-                <Label className="text-sm font-medium" id={subIdsId}>
+                <Label className="text-sm font-medium">
                   Sub IDs
                 </Label>
-                <p className="text-xs text-muted-foreground" aria-describedby={subIdsId}>
-                  Filter by specific sub IDs from your campaigns
-                </p>
                 
                 {availableSubIds.length === 0 ? (
                   <div className="p-3 text-sm text-muted-foreground border rounded-md">
@@ -528,7 +414,7 @@ export function FilterPanel({
                 ) : (
                   <Command className="border rounded-md">
                     <CommandInput placeholder="Search sub IDs..." className="h-9" />
-                    <CommandList className="max-h-48">
+                    <CommandList className="max-h-32">
                       <CommandEmpty>No sub IDs found.</CommandEmpty>
                       <CommandGroup>
                         {availableSubIds.map((subId) => (
@@ -540,7 +426,6 @@ export function FilterPanel({
                             <Checkbox
                               checked={filters.subIds.includes(subId)}
                               onChange={() => toggleSubId(subId)}
-                              aria-label={`${filters.subIds.includes(subId) ? 'Unselect' : 'Select'} ${subId}`}
                             />
                             <span className="flex-1">{subId}</span>
                             {filters.subIds.includes(subId) && (
@@ -555,8 +440,7 @@ export function FilterPanel({
               </div>
             </div>
             
-            {/* Footer Actions */}
-            <div className="flex justify-between pt-4 border-t">
+            <div className="shrink-0 flex justify-between pt-4 border-t mt-auto">
               <Button variant="outline" onClick={clearFilters}>
                 Clear All
               </Button>
@@ -567,7 +451,6 @@ export function FilterPanel({
           </SheetContent>
         </Sheet>
         
-        {/* Clear All Button */}
         {activeFiltersCount > 0 && (
           <Button 
             variant="ghost" 
