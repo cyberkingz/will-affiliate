@@ -10,8 +10,7 @@ import {
   UserPlus, 
   Network, 
   Search,
-  Shield,
-  Settings
+  Shield
 } from 'lucide-react'
 import { TeamStats, NetworkConnection } from './types/team.types'
 

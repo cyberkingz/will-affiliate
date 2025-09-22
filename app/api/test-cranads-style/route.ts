@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { AffluentRecord } from '@/lib/api/affiliate-network'
 
@@ -6,7 +6,7 @@ const normalizeError = (error: unknown): Error => (
   error instanceof Error ? error : new Error(String(error))
 )
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = await createClient()
     

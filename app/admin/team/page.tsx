@@ -10,7 +10,7 @@ import { AddUserModal } from './components/modals/add-user-modal'
 import type { AddUserFormData } from './components/modals/add-user-modal'
 import { NetworkAccessModal } from './components/modals/network-access-modal'
 import { UserActivityModal } from './components/modals/user-activity-modal'
-import { TeamUser, TeamStats, NetworkConnection, UserActivityMetrics } from './components/types/team.types'
+import { TeamUser, TeamStats, NetworkConnection } from './components/types/team.types'
 
 type TabId = 'users' | 'permissions' | 'activity'
 
@@ -234,11 +234,6 @@ export default function TeamManagementPage() {
               users={users}
               selectedUserId={selectedUserId}
               onUserSelect={setSelectedUserId}
-              dateRange={{
-                from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-                to: new Date()
-              }}
-              onDateRangeChange={(range) => console.log('Date range change:', range)}
             />
           )}
         </div>

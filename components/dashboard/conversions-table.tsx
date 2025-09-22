@@ -143,7 +143,7 @@ export const ConversionsTable = React.memo(function ConversionsTable({ data, isL
         pageSize,
       },
     },
-    onPaginationChange: (updater) => {
+    onPaginationChange: () => {
       // Handle pagination updates if needed
     },
   })

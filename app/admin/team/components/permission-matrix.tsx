@@ -4,8 +4,8 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Shield, Network, BarChart3, Settings, Users, Eye } from 'lucide-react'
-import { TeamUser, NetworkConnection, NetworkAccessChange } from './types/team.types'
+import { Network } from 'lucide-react'
+import { TeamUser, NetworkConnection } from './types/team.types'
 
 interface PermissionMatrixProps {
   userId: string

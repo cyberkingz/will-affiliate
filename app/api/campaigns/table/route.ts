@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { startDate, endDate, networks, campaigns, subIds } = body
+    const { startDate, endDate, networks, campaigns } = body
 
     // Get user's accessible networks
     const { data: userNetworks } = await supabase

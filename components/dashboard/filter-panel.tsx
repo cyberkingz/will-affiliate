@@ -98,7 +98,7 @@ export function FilterPanel({
       } else {
         setNetworkOffers([])
       }
-    } catch (error) {
+    } catch {
       setNetworkOffers([])
     } finally {
       setLoadingOffers(false)

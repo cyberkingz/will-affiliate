@@ -64,8 +64,6 @@ export const useDataLoading = () => {
   })
 
   const [retryCount, setRetryCount] = useState(0)
-  const [startTime, setStartTime] = useState<number | null>(null)
-
   // Simulate data loading with real API integration
   const startLoading = useCallback(
     async <T,>(
@@ -83,7 +81,6 @@ export const useDataLoading = () => {
       }))
     
       const startTimestamp = Date.now()
-      setStartTime(startTimestamp)
     
       // Progress tracking
       const progressInterval = setInterval(() => {
@@ -168,7 +165,6 @@ export const useDataLoading = () => {
       timeElapsed: 0
     })
     setRetryCount(0)
-    setStartTime(null)
   }, [])
 
   return {
@@ -882,13 +878,18 @@ export const NetworkStatusIndicator: React.FC<{
 
 // Real-time network quality monitor hook
 export const useNetworkStatus = () => {
+  const isClient = typeof navigator !== 'undefined'
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>({
-    isOnline: navigator.onLine,
+    isOnline: isClient ? navigator.onLine : true,
     quality: 'good',
     lastChecked: new Date()
   })
   
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
     const updateNetworkStatus = () => {
       setNetworkStatus(prev => ({
         ...prev,

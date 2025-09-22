@@ -116,7 +116,7 @@ export const ClicksTable = React.memo(function ClicksTable({ data, isLoading = f
         pageSize,
       },
     },
-    onPaginationChange: (updater) => {
+    onPaginationChange: () => {
       // Handle pagination updates if needed
     },
   })

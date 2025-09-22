@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { AffluentRecord } from '@/lib/api/affiliate-network'
 
 const normalizeError = (error: unknown): Error => (
   error instanceof Error ? error : new Error(String(error))
 )
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Test Affluent API directly
     const baseUrl = process.env.AFFILIATE_NETWORK_BASE_URL || 'https://login.affluentco.com/affiliates/api'

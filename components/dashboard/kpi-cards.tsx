@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrendingUp, TrendingDown, DollarSign, MousePointer, Target, Percent, Calculator } from 'lucide-react'
+import { DollarSign, MousePointer, Target, Percent } from 'lucide-react'
 
 export interface KPIData {
   revenue: {
@@ -116,9 +116,6 @@ export const KPICards = React.memo(function KPICards({ data, isLoading = false }
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {kpiItems.map((item, index) => {
         const Icon = item.icon
-        const isPositive = item.change >= 0
-        const TrendIcon = isPositive ? TrendingUp : TrendingDown
-        
         return (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

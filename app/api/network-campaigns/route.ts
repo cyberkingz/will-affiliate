@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { AffiliateNetworkAPI, defaultNetworkConfig, AffluentRecord } from '@/lib/api/affiliate-network'
+import { AffluentRecord } from '@/lib/api/affiliate-network'
 
 const getOfferStatusName = (offer: AffluentRecord): string => {
   const status = offer['offer_status']

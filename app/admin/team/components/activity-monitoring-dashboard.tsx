@@ -4,23 +4,19 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Activity, Clock, Eye, Download, Filter } from 'lucide-react'
-import { TeamUser, DateRange } from './types/team.types'
+import { Activity, Clock, Eye, Download } from 'lucide-react'
+import { TeamUser } from './types/team.types'
 
 interface ActivityMonitoringDashboardProps {
   users: TeamUser[]
   selectedUserId: string | null
   onUserSelect: (userId: string) => void
-  dateRange: DateRange
-  onDateRangeChange: (range: DateRange) => void
 }
 
 export function ActivityMonitoringDashboard({
   users,
   selectedUserId,
-  onUserSelect,
-  dateRange,
-  onDateRangeChange
+  onUserSelect
 }: ActivityMonitoringDashboardProps) {
   const mockActivityData = [
     { time: '09:00', user: 'John Admin', action: 'Logged in', details: 'Dashboard access' },

@@ -12,7 +12,6 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { cn } from "@/lib/utils"
 import { logout } from "@/app/auth/actions"
 import { Database } from "@/types/supabase"
 

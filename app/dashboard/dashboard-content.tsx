@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { FilterPanel, FilterState } from '@/components/dashboard/filter-panel'
 import { KPICards, KPIData } from '@/components/dashboard/kpi-cards'
@@ -17,7 +17,7 @@ interface DashboardContentProps {
 }
 
 // Helper function to format date as YYYY-MM-DD in local timezone
-const formatDateForAPI = (date: Date, isEndDate: boolean = false): string => {
+const formatDateForAPI = (date: Date): string => {
   // Use local timezone to get the actual date components
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -66,11 +66,6 @@ export function DashboardContent({ user }: DashboardContentProps) {
     subId2: ''
   })
   const [isLoading, setIsLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState({
-    isActive: false,
-    lastSync: null as string | null
-  })
-
   // Available filter options
   const [availableNetworks, setAvailableNetworks] = useState<Array<{ id: string; name: string }>>([])
   const [availableOffers, setAvailableOffers] = useState<Array<{ id: string; name: string }>>([])
@@ -79,11 +74,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [availableTableSubIds, setAvailableTableSubIds] = useState<string[]>([])
   const [availableTableSubIds2, setAvailableTableSubIds2] = useState<string[]>([])
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true)
     
     const formattedStartDate = formatDateForAPI(filters.dateRange.from)
-    const formattedEndDate = formatDateForAPI(filters.dateRange.to, true)
+    const formattedEndDate = formatDateForAPI(filters.dateRange.to)
     
     console.log('📅 [FRONTEND] Date debugging:', {
       originalFrom: filters.dateRange.from.toString(),
@@ -173,31 +168,16 @@ export function DashboardContent({ user }: DashboardContentProps) {
         const errorText = await filtersResponse.text()
         console.error('❌ [FRONTEND] Failed to fetch filters:', filtersResponse.status, errorText)
       }
-
-      // Fetch sync status
-      const syncResponse = await fetch('/api/health/sync-status')
-      if (syncResponse.ok) {
-        const syncData = await syncResponse.json()
-        setSyncStatus(syncData)
-      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const filtersString = useMemo(() => JSON.stringify(filters), [filters])
-  const tableFiltersString = useMemo(() => JSON.stringify(tableFilters), [tableFilters])
+  }, [filters, tableFilters])
 
   useEffect(() => {
     fetchData()
-  }, [filtersString, tableFiltersString])
-
-
-  const handleRefresh = () => {
-    fetchData()
-  }
+  }, [fetchData])
 
   return (
     <DashboardLayout user={user}>

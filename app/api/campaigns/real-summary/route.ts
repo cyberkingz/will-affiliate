@@ -149,8 +149,6 @@ export async function POST(request: NextRequest) {
 
     // Calculate previous period for comparison (simplified - you may want to fetch actual previous period data)
     const periodDays = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
-    const previousStart = new Date(new Date(startDate).getTime() - (periodDays * 24 * 60 * 60 * 1000))
-    const previousEnd = new Date(new Date(startDate).getTime() - (24 * 60 * 60 * 1000))
 
     // For now, use mock data for previous period (implement real API call later)
     const previousMetrics = {

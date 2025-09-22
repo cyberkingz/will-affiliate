@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/select'
 import { 
   MoreHorizontal, 
-  Edit, 
   Trash2, 
   Shield, 
   User, 
@@ -49,9 +48,6 @@ export function UserManagementTable({
   onSelectedUsersChange,
   loading
 }: UserManagementTableProps) {
-  const [sortField, setSortField] = useState<keyof TeamUser>('fullName')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       onSelectedUsersChange(users.map(u => u.id))

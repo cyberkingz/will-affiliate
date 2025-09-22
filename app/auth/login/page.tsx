@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,6 +10,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { login, signup } from '../actions'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
+  )
+}
+
+function LoginPageContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
   const message = searchParams.get('message')
@@ -25,7 +32,7 @@ export default function LoginPage() {
       } else {
         await login(formData)
       }
-    } catch (error) {
+    } catch {
       // Error handling is done in the server actions
     } finally {
       setIsLoading(false)
@@ -116,6 +123,18 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+    </div>
+  )
+}
+
+function LoginPageFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8 text-center">
+        <h1 className="text-3xl font-bold text-neutral-50">Campaigns Insight</h1>
+        <p className="text-neutral-300">Loading sign-in experience…</p>
+        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
       </div>
     </div>
   )
