@@ -11,7 +11,7 @@ import {
   SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowUpDown, Download } from 'lucide-react'
+import { ArrowUpDown, Download, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -26,78 +26,125 @@ import { Badge } from '@/components/ui/badge'
 
 export interface ClickData {
   id: string
-  dateTime: string
+  date: string
+  time: string
   offerName: string
   subId: string
   subId2: string
+  campaignId?: string
 }
 
 interface ClicksTableProps {
   data: ClickData[]
   isLoading?: boolean
   totalCount?: number
+  onExport?: () => void
 }
 
-export const ClicksTable = React.memo(function ClicksTable({ data, isLoading = false, totalCount }: ClicksTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [pageSize, setPageSize] = useState(10)
-
-  const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    })
+const formatDateTime = (dateString: string) => {
+  // Handle empty or invalid dates
+  if (!dateString) {
+    return { dateStr: 'Unknown', timeStr: 'Unknown' }
   }
+
+  const date = new Date(dateString)
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date string:', dateString)
+    return { dateStr: 'Invalid Date', timeStr: 'Invalid Date' }
+  }
+
+  const dateStr = date.toLocaleDateString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric'
+  })
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  })
+  return { dateStr, timeStr }
+}
+
+export const ClicksTable = React.memo(({ data, isLoading, totalCount, onExport }: ClicksTableProps) => {
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const columns: ColumnDef<ClickData>[] = [
     {
-      accessorKey: 'dateTime',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="text-neutral-300 hover:text-neutral-100"
-        >
-          Date & Time
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <div className="text-neutral-200">
-          {formatDateTime(row.getValue('dateTime'))}
-        </div>
-      ),
+      accessorKey: 'date',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="h-8 px-2 text-neutral-300 hover:text-white"
+          >
+            Date & Time
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => {
+        const dateValue = row.original.date
+        console.log('📅 [CLICKS-TABLE] Date value:', dateValue, typeof dateValue)
+        const { dateStr, timeStr } = formatDateTime(dateValue)
+        return (
+          <div className="text-sm">
+            <div className="text-neutral-200">{dateStr}</div>
+            <div className="text-neutral-400">{timeStr}</div>
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'offerName',
-      header: 'Offer Name',
-      cell: ({ row }) => (
-        <Badge variant="outline" className="bg-blue-500 text-white border-blue-500">
-          {row.getValue('offerName')}
-        </Badge>
-      ),
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="h-8 px-2 text-neutral-300 hover:text-white"
+          >
+            Offer Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => {
+        const offerName = row.getValue('offerName') as string
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30">
+            {offerName}
+          </Badge>
+        )
+      },
     },
     {
       accessorKey: 'subId',
       header: 'Sub ID',
-      cell: ({ row }) => (
-        <div className="text-neutral-200">
-          {row.getValue('subId') || '-'}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const subId = row.getValue('subId') as string
+        return (
+          <span className="text-neutral-300 font-mono text-sm">
+            {subId || '-'}
+          </span>
+        )
+      },
     },
     {
       accessorKey: 'subId2',
       header: 'Sub ID 2',
-      cell: ({ row }) => (
-        <div className="text-neutral-200">
-          {row.getValue('subId2') || '-'}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const subId2 = row.getValue('subId2') as string
+        return (
+          <span className={`font-mono text-sm ${subId2 ? 'text-neutral-300' : 'text-neutral-500 italic'}`}>
+            {subId2 || 'N/A'}
+          </span>
+        )
+      },
     },
   ]
 
@@ -111,37 +158,43 @@ export const ClicksTable = React.memo(function ClicksTable({ data, isLoading = f
     getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
-      pagination: {
-        pageIndex: 0,
-        pageSize,
-      },
     },
-    onPaginationChange: () => {
-      // Handle pagination updates if needed
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
     },
   })
 
   if (isLoading) {
     return (
-      <Card className="bg-neutral-950 border-neutral-800">
-        <CardHeader>
-          <CardTitle className="text-neutral-100 flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-blue-500" />
-            Clicks
-            <Badge variant="secondary" className="bg-blue-500 text-white">
-              {totalCount || 0}
+      <Card className="bg-neutral-900 border-neutral-800">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-lg font-semibold text-neutral-100 flex items-center gap-2">
+            🖱️ Clicks
+            <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30">
+              {totalCount?.toLocaleString() || '0'}
             </Badge>
-            <div className="ml-auto">
-              <Button variant="ghost" size="sm" className="text-neutral-400">
-                <Download className="w-4 h-4" />
-              </Button>
-            </div>
           </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExport}
+            className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-12 w-full bg-neutral-800 rounded animate-pulse" />
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex space-x-4">
+                <div className="h-4 w-24 bg-neutral-800 rounded animate-pulse"></div>
+                <div className="h-4 w-32 bg-neutral-800 rounded animate-pulse"></div>
+                <div className="h-4 w-16 bg-neutral-800 rounded animate-pulse"></div>
+                <div className="h-4 w-16 bg-neutral-800 rounded animate-pulse"></div>
+              </div>
             ))}
           </div>
         </CardContent>
@@ -150,29 +203,32 @@ export const ClicksTable = React.memo(function ClicksTable({ data, isLoading = f
   }
 
   return (
-    <Card className="bg-neutral-950 border-neutral-800">
-      <CardHeader>
-        <CardTitle className="text-neutral-100 flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full bg-blue-500" />
-          Clicks
-          <Badge variant="secondary" className="bg-blue-500 text-white">
-            {totalCount || data.length}
+    <Card className="bg-neutral-900 border-neutral-800">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardTitle className="text-lg font-semibold text-neutral-100 flex items-center gap-2">
+          🖱️ Clicks
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30">
+            {totalCount?.toLocaleString() || data.length.toLocaleString()}
           </Badge>
-          <div className="ml-auto">
-            <Button variant="ghost" size="sm" className="text-neutral-400 hover:text-neutral-200">
-              <Download className="w-4 h-4" />
-            </Button>
-          </div>
         </CardTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onExport}
+          className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Export
+        </Button>
       </CardHeader>
       <CardContent>
-        <div className="w-full">
-          <div className="rounded-md border border-neutral-800">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="border-neutral-800 hover:bg-neutral-900">
-                    {headerGroup.headers.map((header) => (
+        <div className="rounded-md border border-neutral-800">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className="border-neutral-800 hover:bg-neutral-900">
+                  {headerGroup.headers.map((header) => {
+                    return (
                       <TableHead key={header.id} className="text-neutral-300">
                         {header.isPlaceholder
                           ? null
@@ -181,87 +237,95 @@ export const ClicksTable = React.memo(function ClicksTable({ data, isLoading = f
                               header.getContext()
                             )}
                       </TableHead>
+                    )
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && 'selected'}
+                    className="border-neutral-800 hover:bg-neutral-900/50"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="text-neutral-200">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
                     ))}
                   </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className="border-neutral-800 hover:bg-neutral-900"
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="text-neutral-200">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow className="border-neutral-800">
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center text-neutral-400"
-                    >
-                      No clicks found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center text-neutral-400"
+                  >
+                    No clicks found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between space-x-2 py-4">
+          <div className="text-sm text-neutral-400">
+            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+            {Math.min(
+              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+              data.length
+            )}{' '}
+            of {data.length} results
           </div>
-          <div className="flex items-center justify-between space-x-2 py-4">
-            <div className="text-sm text-neutral-400">
-              1-{Math.min(pageSize, table.getFilteredRowModel().rows.length)} of {totalCount || table.getFilteredRowModel().rows.length}
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-neutral-400">Items per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-200"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-              <div className="flex space-x-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
-                  className="text-neutral-400 hover:text-neutral-200"
-                >
-                  &lt;
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
-                  className="text-neutral-400 hover:text-neutral-200"
-                >
-                  &gt;
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-neutral-400 hover:text-neutral-200"
-                >
-                  &gt;&gt;
-                </Button>
-              </div>
-            </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+              className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+            >
+              Next
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+              className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </CardContent>
     </Card>
   )
 })
+
+ClicksTable.displayName = 'ClicksTable'

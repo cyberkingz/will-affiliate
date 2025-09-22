@@ -166,7 +166,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
         
         // Set table filter options from real data
         // Extract unique offer names from campaigns
-        const offerNames = filtersData.campaigns?.map(c => c.name).filter(Boolean) || []
+        const offerNames = filtersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
         setAvailableOfferNames([...new Set(offerNames)])
         
         // Use real sub IDs from the API
@@ -223,16 +223,24 @@ export function DashboardContent({ user }: DashboardContentProps) {
           />
 
           {/* Data Tables */}
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 xl:grid-cols-2">
             <ClicksTable 
               data={clicksData} 
               isLoading={isLoading}
               totalCount={56289}
+              onExport={() => {
+                // TODO: Implement export functionality
+                console.log('Exporting clicks data...')
+              }}
             />
             <ConversionsTable 
               data={conversionsData} 
               isLoading={isLoading}
               totalCount={15949}
+              onExport={() => {
+                // TODO: Implement export functionality
+                console.log('Exporting conversions data...')
+              }}
             />
           </div>
         </div>

@@ -155,15 +155,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ conversions: [], totalCount: 0 })
     }
 
+    // Debug: Log the structure of the first few conversions
+    if (conversionsResponse.data && conversionsResponse.data.length > 0) {
+      console.log('🔍 [REAL-CONVERSIONS] First conversion structure:', JSON.stringify(conversionsResponse.data[0], null, 2))
+      console.log('🔍 [REAL-CONVERSIONS] Available fields in conversion object:', Object.keys(conversionsResponse.data[0]))
+    }
+
     // Transform API response to match our interface
     const transformedConversions: ConversionRow[] = conversionsResponse.data.map(conversion => ({
       id: conversion.conversion_id,
-      dateTime: conversion.conversion_date, // Affluent uses "conversion_date"
+      date: conversion.conversion_date, // Keep the full ISO date string
+      time: conversion.conversion_date, // Same for time - will be parsed in component
       offerName: conversion.offer_name || 'Unknown Offer',
       subId: conversion.subid_1 || '', // Affluent uses "subid_1"
       subId2: conversion.subid_2 || '', // Affluent uses "subid_2"
+      campaignId: conversion.campaign_id ? String(conversion.campaign_id) : '',
       price: conversion.price || 0 // Affluent uses "price"
     }))
+
+    // Debug: Check subId2 values
+    const hasSubId2 = transformedConversions.some(conv => conv.subId2)
+    console.log('🔍 [REAL-CONVERSIONS] Sub ID 2 analysis:', {
+      totalConversions: transformedConversions.length,
+      conversionsWithSubId2: transformedConversions.filter(c => c.subId2).length,
+      hasSubId2,
+      sampleSubId2Values: transformedConversions.slice(0, 5).map(c => c.subId2)
+    })
 
     // Apply client-side filters if needed
     let filteredConversions = transformedConversions

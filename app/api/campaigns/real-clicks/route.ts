@@ -149,16 +149,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ clicks: [], totalCount: 0 })
     }
 
+    // Debug: Log the structure of the first few clicks
+    if (clicksResponse.data && clicksResponse.data.length > 0) {
+      console.log('🔍 [REAL-CLICKS] First click structure:', JSON.stringify(clicksResponse.data[0], null, 2))
+      console.log('🔍 [REAL-CLICKS] Available fields in click object:', Object.keys(clicksResponse.data[0]))
+    }
+
     // Transform API response to match our interface
-    const transformedClicks: ClickData[] = clicksResponse.data.map(click => ({
-      id: click.unique_click_id || click.tracking_id,
-      dateTime: click.click_date,
-      offerName: click.offer?.offer_name || click.redirect_from_offer?.offer_name || 'Unknown Offer',
-      subId: click.subid_1 || '',
-      subId2: click.subid_2 || '',
-      campaignId: click.campaign_id ? String(click.campaign_id) : '',
-      price: click.price
-    }))
+    const transformedClicks: ClickData[] = clicksResponse.data.map(click => {
+      const clickDate = new Date(click.click_date)
+      return {
+        id: click.unique_click_id || click.tracking_id,
+        date: click.click_date, // Keep the full ISO date string
+        time: click.click_date, // Same for time - will be parsed in component
+        offerName: click.offer?.offer_name || click.redirect_from_offer?.offer_name || 'Unknown Offer',
+        subId: click.subid_1 || '',
+        subId2: click.subid_2 || '',
+        campaignId: click.campaign_id ? String(click.campaign_id) : '',
+        price: click.price
+      }
+    })
+
+    // Debug: Check subId2 values
+    const hasSubId2 = transformedClicks.some(click => click.subId2)
+    console.log('🔍 [REAL-CLICKS] Sub ID 2 analysis:', {
+      totalClicks: transformedClicks.length,
+      clicksWithSubId2: transformedClicks.filter(c => c.subId2).length,
+      hasSubId2,
+      sampleSubId2Values: transformedClicks.slice(0, 5).map(c => c.subId2)
+    })
 
     // Apply client-side filters if needed
     let filteredClicks = transformedClicks
