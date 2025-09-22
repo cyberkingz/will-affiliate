@@ -30,12 +30,14 @@ const formatDateForAPI = (date: Date): string => {
 
 const getDefaultFilters = (): FilterState => {
   const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  startOfMonth.setHours(0, 0, 0, 0)
+  // Use last 7 days as default (smaller range for better performance on initial load)
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(now.getDate() - 7)
+  sevenDaysAgo.setHours(0, 0, 0, 0)
   
   return {
     dateRange: {
-      from: startOfMonth, // First day of current month
+      from: sevenDaysAgo, // Last 7 days instead of full month
       to: now
     },
     networks: ['affluent'], // Default to Affluent network
@@ -89,74 +91,80 @@ export function DashboardContent({ user }: DashboardContentProps) {
     })
     
     try {
-      // Fetch summary data
-      const summaryResponse = await fetch('/api/campaigns/summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: formattedStartDate,
-          endDate: formattedEndDate,
-          networks: filters.networks,
-          offers: filters.offers,
-          subIds: filters.subIds
-        })
-      })
+      // Prepare common request body
+      const requestBody = {
+        startDate: formattedStartDate,
+        endDate: formattedEndDate,
+        networks: filters.networks,
+        offers: filters.offers,
+        subIds: filters.subIds
+      }
 
-      if (summaryResponse.ok) {
-        const summaryData = await summaryResponse.json()
+      const tableRequestBody = {
+        ...requestBody,
+        campaigns: filters.offers, // Note: API expects 'campaigns' not 'offers'
+        tableFilters: tableFilters,
+        page: 1,
+        limit: 50
+      }
+
+      // Run all API calls in parallel to avoid race conditions
+      const [
+        summaryResponse,
+        clicksResponse, 
+        conversionsResponse,
+        filtersResponse
+      ] = await Promise.allSettled([
+        fetch('/api/campaigns/summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        }),
+        fetch('/api/campaigns/real-clicks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tableRequestBody)
+        }),
+        fetch('/api/campaigns/real-conversions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tableRequestBody)
+        }),
+        fetch('/api/campaigns/filters')
+      ])
+
+      // Handle summary response
+      if (summaryResponse.status === 'fulfilled' && summaryResponse.value.ok) {
+        const summaryData = await summaryResponse.value.json()
         setKpiData(summaryData.kpis)
         setTrendData(summaryData.trends)
+      } else {
+        console.error('❌ [DASHBOARD] Summary API failed:', summaryResponse)
       }
 
-      // Fetch real clicks data from Affluent
-      const clicksResponse = await fetch('/api/campaigns/real-clicks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: formattedStartDate,
-          endDate: formattedEndDate,
-          networks: filters.networks,
-          campaigns: filters.offers, // Note: API expects 'campaigns' not 'offers'
-          tableFilters: tableFilters,
-          page: 1,
-          limit: 50
-        })
-      })
-
-      if (clicksResponse.ok) {
-        const clicksResponseData = await clicksResponse.json()
+      // Handle clicks response
+      if (clicksResponse.status === 'fulfilled' && clicksResponse.value.ok) {
+        const clicksResponseData = await clicksResponse.value.json()
         console.log('📊 [DASHBOARD] Clicks response:', clicksResponseData)
         setClicksData(clicksResponseData.clicks || [])
+      } else {
+        console.error('❌ [DASHBOARD] Clicks API failed:', clicksResponse)
+        setClicksData([])
       }
 
-      // Fetch real conversions data from Affluent
-      const conversionsResponse = await fetch('/api/campaigns/real-conversions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: formattedStartDate,
-          endDate: formattedEndDate,
-          networks: filters.networks,
-          campaigns: filters.offers, // Note: API expects 'campaigns' not 'offers'
-          tableFilters: tableFilters,
-          page: 1,
-          limit: 50
-        })
-      })
-
-      if (conversionsResponse.ok) {
-        const conversionsResponseData = await conversionsResponse.json()
+      // Handle conversions response
+      if (conversionsResponse.status === 'fulfilled' && conversionsResponse.value.ok) {
+        const conversionsResponseData = await conversionsResponse.value.json()
         console.log('📊 [DASHBOARD] Conversions response:', conversionsResponseData)
         setConversionsData(conversionsResponseData.conversions || [])
+      } else {
+        console.error('❌ [DASHBOARD] Conversions API failed:', conversionsResponse)
+        setConversionsData([])
       }
 
-      // Fetch filter options
-      console.log('🎯 [FRONTEND] Fetching filter options from /api/campaigns/filters...')
-      const filtersResponse = await fetch('/api/campaigns/filters')
-      console.log('📥 [FRONTEND] Filters response status:', filtersResponse.status)
-      
-      if (filtersResponse.ok) {
-        const filtersData = await filtersResponse.json()
+      // Handle filters response
+      if (filtersResponse.status === 'fulfilled' && filtersResponse.value.ok) {
+        const filtersData = await filtersResponse.value.json()
         console.log('📋 [FRONTEND] Filters data received:', filtersData)
         console.log('🎯 [FRONTEND] Available offers:', filtersData.campaigns)
         
@@ -175,8 +183,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
         setAvailableTableSubIds(subIds1)  // Sub ID 1 values only
         setAvailableTableSubIds2(subIds2) // Sub ID 2 values only (empty in current dataset)
       } else {
-        const errorText = await filtersResponse.text()
-        console.error('❌ [FRONTEND] Failed to fetch filters:', filtersResponse.status, errorText)
+        console.error('❌ [FRONTEND] Filters API failed:', filtersResponse)
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)

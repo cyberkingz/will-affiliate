@@ -72,8 +72,20 @@ export interface AffluentConversionData {
   subid_3: string
   subid_4: string
   subid_5: string
-  price: number
+  price: number // NOTE: This is offer price, not conversion revenue
   disposition: string | null
+  
+  // 🎯 POTENTIAL ADDITIONAL FIELDS (need investigation)
+  revenue?: number          // Actual conversion revenue
+  payout?: number           // Affiliate commission
+  commission?: number       // Commission amount
+  earning?: number          // Earning amount
+  amount?: number           // Generic amount field
+  sale_amount?: number      // Total sale value (RevShare)
+  conversion_status?: string // pending/approved/rejected
+  campaign_id?: number      // Associated campaign
+  advertiser_id?: number    // Advertiser identifier
+  click_id?: string         // Original click identifier
 }
 
 export interface AffluentAPIResponse<T> {
@@ -197,7 +209,8 @@ export class AffiliateNetworkAPI {
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'WillAffiliate-Dashboard/1.0'
-        }
+        },
+        signal: AbortSignal.timeout(60000) // 60 second timeout for large datasets
       })
 
       console.log('📥 [API] Response status:', response.status, response.statusText)

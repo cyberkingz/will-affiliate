@@ -12,6 +12,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -189,22 +196,75 @@ export function FilterPanel({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <div className="p-3 border-b">
-              <div className="text-sm font-medium mb-2">Quick Select</div>
-              <div className="grid grid-cols-2 gap-2">
-                {templates.filter(t => t.category === 'quick').slice(0, 4).map((template) => (
-                  <Button
-                    key={template.id}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs justify-start"
-                    onClick={() => applyTemplate(template.id)}
-                  >
-                    {template.label}
-                  </Button>
-                ))}
-              </div>
+          <PopoverContent className="w-auto p-0 shadow-xl border-border/50 backdrop-blur-sm" align="start">
+            <div className="p-3 border-b border-border/40">
+              <div className="text-sm font-medium mb-3 text-foreground/90">Date Templates</div>
+              <Select onValueChange={applyTemplate}>
+                <SelectTrigger className="h-9 text-sm border-border/50 hover:border-border bg-background/50 backdrop-blur-sm">
+                  <SelectValue placeholder="Choose a date range..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-80">
+                  {/* Quick Access */}
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b border-border/40 mb-1">
+                    Quick Access
+                  </div>
+                  {templates.filter(t => t.category === 'quick').map((template) => (
+                    <SelectItem 
+                      key={template.id} 
+                      value={template.id}
+                      className="text-sm cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{template.icon}</span>
+                        <div>
+                          <div className="font-medium">{template.label}</div>
+                          <div className="text-xs text-muted-foreground">{template.description}</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                  
+                  {/* Business Periods */}
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b border-t border-border/40 my-1">
+                    Business Periods
+                  </div>
+                  {templates.filter(t => t.category === 'business').map((template) => (
+                    <SelectItem 
+                      key={template.id} 
+                      value={template.id}
+                      className="text-sm cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{template.icon}</span>
+                        <div>
+                          <div className="font-medium">{template.label}</div>
+                          <div className="text-xs text-muted-foreground">{template.description}</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                  
+                  {/* Comparison Periods */}
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b border-t border-border/40 my-1">
+                    Comparison Periods
+                  </div>
+                  {templates.filter(t => t.category === 'comparison').map((template) => (
+                    <SelectItem 
+                      key={template.id} 
+                      value={template.id}
+                      className="text-sm cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{template.icon}</span>
+                        <div>
+                          <div className="font-medium">{template.label}</div>
+                          <div className="text-xs text-muted-foreground">{template.description}</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Calendar
               mode="range"
@@ -213,18 +273,37 @@ export function FilterPanel({
               onSelect={handleDateRangeSelect}
               numberOfMonths={2}
               classNames={{
-                weekdays: "flex w-full",
-                weekday: "text-muted-foreground text-xs font-medium w-full text-center p-2",
-                week: "flex w-full mt-1",
-                day: "text-center p-0 relative w-full h-full hover:bg-accent hover:text-accent-foreground rounded-md transition-colors",
+                // Base table structure with subtle improvements
                 table: "w-full border-collapse space-y-1",
-                range_start: "bg-primary text-primary-foreground rounded-l-md hover:bg-primary/90",
-                range_end: "bg-primary text-primary-foreground rounded-r-md hover:bg-primary/90",
-                range_middle: "bg-accent/50 text-accent-foreground rounded-none hover:bg-accent/70",
-                selected: "bg-primary text-primary-foreground hover:bg-primary/90",
-                today: "bg-accent text-accent-foreground font-semibold",
-                outside: "text-muted-foreground opacity-50",
-                disabled: "text-muted-foreground opacity-30 cursor-not-allowed"
+                
+                // Sophisticated weekday headers
+                weekdays: "flex w-full border-b border-border/40 mb-2 pb-2",
+                weekday: "text-muted-foreground/80 text-xs font-medium w-full text-center p-2 tracking-wide",
+                
+                // Week rows with proper spacing
+                week: "flex w-full mt-0.5",
+                
+                // Enhanced day cells with hover
+                day: "text-center p-0 relative w-full h-full hover:bg-primary/15 hover:text-primary hover:border hover:border-primary/25 rounded-md transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30",
+                
+                // Pronounced range start styling
+                range_start: "bg-primary/20 text-primary font-medium border border-primary/30 rounded-md hover:bg-primary/25 transition-colors duration-150",
+                
+                // Pronounced range end styling
+                range_end: "bg-primary/20 text-primary font-medium border border-primary/30 rounded-md hover:bg-primary/25 transition-colors duration-150",
+                
+                // Ultra-subtle range middle
+                range_middle: "bg-primary/5 text-foreground hover:bg-primary/8 transition-colors duration-150",
+                
+                // Minimal selected state
+                selected: "bg-primary/10 text-foreground hover:bg-primary/15 transition-colors duration-150",
+                
+                // Subtle today indicator
+                today: "text-primary font-medium hover:bg-primary/8 transition-colors duration-150",
+                
+                // Sophisticated disabled and outside states
+                outside: "text-muted-foreground/40 opacity-50 hover:opacity-60 transition-opacity duration-200",
+                disabled: "text-muted-foreground/30 opacity-30 cursor-not-allowed hover:opacity-30"
               }}
             />
           </PopoverContent>
@@ -377,7 +456,13 @@ export function FilterPanel({
                     <CommandList className="max-h-32">
                       <CommandEmpty>No offers found.</CommandEmpty>
                       <CommandGroup>
-                        {[...availableOffers, ...networkOffers].map((offer) => (
+                        {(() => {
+                          // Combine offers and ensure "All Offers" comes first
+                          const allOffers = [...availableOffers, ...networkOffers]
+                          const allOffersItem = allOffers.find(o => o.id === 'all')
+                          const otherOffers = allOffers.filter(o => o.id !== 'all')
+                          return allOffersItem ? [allOffersItem, ...otherOffers] : otherOffers
+                        })().map((offer) => (
                           <CommandItem
                             key={offer.id}
                             onSelect={() => toggleOffer(offer.id)}
