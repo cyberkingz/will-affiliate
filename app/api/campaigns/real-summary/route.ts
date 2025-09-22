@@ -1,7 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { AffiliateNetworkAPI, defaultNetworkConfig } from '@/lib/api/affiliate-network'
+import { AffiliateNetworkAPI, defaultNetworkConfig, HourlySummaryData } from '@/lib/api/affiliate-network'
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
+
+type TrendRow = {
+  hour: string
+  time: string
+  revenue: number
+  clicks: number
+  conversions: number
+  spend: number
+}
+
+interface SummaryResponse {
+  kpis: {
+    revenue: { value: number; change: number; period: string }
+    clicks: { value: number; change: number }
+    conversions: { value: number; change: number }
+    cvr: { value: number; change: number }
+    epc: { value: number; change: number }
+    roas: { value: number; change: number }
+    peakHour: { value: string; clicks: number }
+  }
+  trends: TrendRow[]
+}
+
+interface RealSummaryRequestBody {
+  startDate: string
+  endDate: string
+  networks?: string[]
+  campaigns?: string[]
+}
+
+const toNumber = (value: unknown): number => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? 0 : parsed
+  }
+  if (typeof value === 'boolean') {
+    return value ? 1 : 0
+  }
+  return 0
+}
+
+const formatHourLabel = (hourValue: HourlySummaryData['hour']): string => {
+  if (typeof hourValue === 'string') {
+    if (hourValue.includes(':')) {
+      return hourValue
+    }
+    return `${hourValue.padStart(2, '0')}:00`
+  }
+
+  if (typeof hourValue === 'number' && Number.isFinite(hourValue)) {
+    return `${hourValue.toString().padStart(2, '0')}:00`
+  }
+
+  return '--'
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +71,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { startDate, endDate, networks, campaigns } = body
+    const body = await request.json() as RealSummaryRequestBody
+    const { startDate, endDate, campaigns = [] } = body
+    const networks = body.networks ?? []
 
     // Check cache first
     const cacheKey = createCacheKey('real-summary', { 
@@ -25,7 +84,7 @@ export async function POST(request: NextRequest) {
       campaigns 
     })
     
-    const cachedData = apiCache.get(cacheKey)
+    const cachedData = apiCache.get<SummaryResponse>(cacheKey)
     if (cachedData) {
       return NextResponse.json(cachedData)
     }
@@ -57,7 +116,7 @@ export async function POST(request: NextRequest) {
       ...defaultNetworkConfig,
       affiliateId: userNetworks[0].affiliate_id || defaultNetworkConfig.affiliateId,
       apiKey: userNetworks[0].api_key || defaultNetworkConfig.apiKey,
-      baseUrl: userNetworks[0].api_url || defaultNetworkConfig.baseUrl
+      baseUrl: defaultNetworkConfig.baseUrl
     }
     
     const api = new AffiliateNetworkAPI(networkConfig)
@@ -126,19 +185,27 @@ export async function POST(request: NextRequest) {
       roas: {
         value: currentMetrics.payout > 0 ? currentMetrics.revenue / currentMetrics.payout : 0,
         change: 0 // Calculate based on previous ROAS
+      },
+      peakHour: {
+        value: '--',
+        clicks: 0
       }
     }
 
     // Process hourly trends
-    const trends = hourlyData.length > 0 
-      ? hourlyData.map(hour => ({
-          hour: hour.hour,
-          time: hour.hour,
-          revenue: hour.revenue || 0,
-          clicks: hour.clicks || 0,
-          conversions: hour.conversions || 0,
-          spend: hour.payout || 0
-        }))
+    const trends: TrendRow[] = hourlyData.length > 0 
+      ? hourlyData.map(hour => {
+          const hourLabel = formatHourLabel(hour.hour)
+          const revenue = toNumber(hour.revenue ?? hour.payout)
+          return {
+            hour: hourLabel,
+            time: hourLabel,
+            revenue,
+            clicks: toNumber(hour.clicks),
+            conversions: toNumber(hour.conversions),
+            spend: toNumber(hour.payout)
+          }
+        })
       : generateMockHourlyData() // Fallback to mock data if no real data
 
     // Find peak hour
@@ -151,7 +218,7 @@ export async function POST(request: NextRequest) {
       clicks: peakHour.clicks
     }
 
-    const responseData = { kpis, trends }
+    const responseData: SummaryResponse = { kpis, trends }
     
     // Cache the response for 5 minutes (real data changes less frequently)
     apiCache.set(cacheKey, responseData, 5)
@@ -171,8 +238,8 @@ function calculatePercentageChange(current: number, previous: number): number {
   return ((current - previous) / previous) * 100
 }
 
-function generateMockHourlyData() {
-  const hourlyData: any[] = []
+function generateMockHourlyData(): TrendRow[] {
+  const hourlyData: TrendRow[] = []
   for (let i = 0; i < 24; i++) {
     const hour = i.toString().padStart(2, '0') + ':00'
     const baseClicks = Math.floor(Math.random() * 200) + 50

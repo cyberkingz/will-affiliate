@@ -63,6 +63,26 @@ export interface AffluentAPIResponse<T> {
   message: string | null
 }
 
+type QueryParamPrimitive = string | number | boolean
+type QueryParamValue = QueryParamPrimitive | QueryParamPrimitive[] | null | undefined
+
+export type AffluentRecord = Record<string, unknown>
+
+export interface DailySummaryRow extends AffluentRecord {
+  date: string
+  impressions?: number | null
+  clicks?: number | null
+  conversions?: number | null
+  conversions_int?: number | null
+  conversion_rate?: number | null
+  revenue?: number | null
+  epc?: number | null
+  currency_symbol?: string | null
+  events?: number | null
+  lite_clicks?: number | null
+  total_lite_clicks?: number | null
+}
+
 // Our internal interface (transformed from Affluent data)
 export interface ClickData {
   id: string
@@ -98,14 +118,14 @@ export interface ConversionData {
   conversion_status: string
 }
 
-export interface HourlySummaryData {
-  hour: string
-  clicks: number
-  conversions: number
-  revenue: number
-  payout: number
-  epc: number
-  cvr: number
+export interface HourlySummaryData extends AffluentRecord {
+  hour?: string | number | null
+  clicks?: number | null
+  conversions?: number | null
+  revenue?: number | null
+  payout?: number | null
+  epc?: number | null
+  cvr?: number | null
 }
 
 export class AffiliateNetworkAPI {
@@ -115,7 +135,7 @@ export class AffiliateNetworkAPI {
     this.config = config
   }
 
-  private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<AffluentAPIResponse<T>> {
+  private async makeRequest<T>(endpoint: string, params: Record<string, QueryParamValue> = {}): Promise<AffluentAPIResponse<T>> {
     // Ensure baseUrl ends without trailing slash and endpoint starts with slash
     const baseUrl = this.config.baseUrl.endsWith('/') 
       ? this.config.baseUrl.slice(0, -1) 
@@ -129,9 +149,18 @@ export class AffiliateNetworkAPI {
     
     // Add other parameters
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        url.searchParams.append(key, value.toString())
+      if (value === undefined || value === null) {
+        return
       }
+
+      if (Array.isArray(value)) {
+        value.forEach(item => {
+          url.searchParams.append(key, String(item))
+        })
+        return
+      }
+
+      url.searchParams.append(key, String(value))
     })
 
     console.log('🌐 [API] Making request to:', url.toString())
@@ -165,7 +194,7 @@ export class AffiliateNetworkAPI {
       
       let data: AffluentAPIResponse<T>
       try {
-        data = JSON.parse(responseText)
+        data = JSON.parse(responseText) as AffluentAPIResponse<T>
         console.log('✅ [API] Parsed response:', {
           success: data.success,
           row_count: data.row_count,
@@ -173,22 +202,24 @@ export class AffiliateNetworkAPI {
           dataLength: data.data?.length || 0
         })
       } catch (parseError) {
-        console.error('❌ [API] JSON parse error:', parseError)
-        throw new Error(`Invalid JSON response: ${parseError.message}`)
+        const jsonError = parseError instanceof Error ? parseError : new Error(String(parseError))
+        console.error('❌ [API] JSON parse error:', jsonError)
+        throw new Error(`Invalid JSON response: ${jsonError.message}`)
       }
       
       return data
     } catch (error) {
-      console.error(`❌ [API] Error for ${endpoint}:`, error)
+      const apiError = error instanceof Error ? error : new Error(String(error))
+      console.error(`❌ [API] Error for ${endpoint}:`, apiError)
       console.error('🔍 [API] Error details:', {
-        message: error.message,
-        stack: error.stack
+        message: apiError.message,
+        stack: apiError.stack
       })
       return {
         row_count: 0,
-        data: [],
+        data: [] as T[],
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: apiError.message
       }
     }
   }
@@ -207,6 +238,7 @@ export class AffiliateNetworkAPI {
     end_date: string
     campaign_id?: number
     offer_id?: number
+    subid_1?: string
     include_duplicates?: boolean
     start_at_row?: number
     row_limit?: number
@@ -250,30 +282,30 @@ export class AffiliateNetworkAPI {
     end_date: string
     campaign_id?: string
     offer_id?: string
-  }): Promise<AffluentAPIResponse<any>> {
-    return this.makeRequest<any>('/Reports/DailySummary', params)
+  }): Promise<AffluentAPIResponse<DailySummaryRow>> {
+    return this.makeRequest<DailySummaryRow>('/Reports/DailySummary', params)
   }
 
   async getOfferFeed(params: {
     offer_status_id?: number
     vertical_category_id?: number
     medium_id?: number
-  } = {}): Promise<AffluentAPIResponse<any>> {
-    return this.makeRequest<any>('/Offers/Feed', params)
+  } = {}): Promise<AffluentAPIResponse<AffluentRecord>> {
+    return this.makeRequest<AffluentRecord>('/Offers/Feed', params)
   }
 
   async getCampaign(params: {
     campaign_id?: number
     fields?: string[]
-  } = {}): Promise<AffluentAPIResponse<any>> {
-    return this.makeRequest<any>('/Offers/Campaign', params)
+  } = {}): Promise<AffluentAPIResponse<AffluentRecord>> {
+    return this.makeRequest<AffluentRecord>('/Offers/Campaign', params)
   }
 
   async getPerformanceSummary(params: {
     date: string
     currency_id?: number
-  }): Promise<AffluentAPIResponse<any>> {
-    return this.makeRequest<any>('/Reports/PerformanceSummary', params)
+  }): Promise<AffluentAPIResponse<AffluentRecord>> {
+    return this.makeRequest<AffluentRecord>('/Reports/PerformanceSummary', params)
   }
 }
 

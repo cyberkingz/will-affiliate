@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { AffiliateNetworkAPI, defaultNetworkConfig, AffluentClickData } from '@/lib/api/affiliate-network'
+import { AffiliateNetworkAPI, defaultNetworkConfig, ClickData } from '@/lib/api/affiliate-network'
+
+type ClicksRequestParams = Parameters<AffiliateNetworkAPI['getClicks']>[0]
+
+type ClickTableFilters = {
+  offerName?: string
+  subId?: string
+  subId2?: string
+}
+
+interface ClicksApiResponse {
+  clicks: ClickData[]
+  totalCount: number
+  page: number
+  limit: number
+  hasNextPage: boolean
+}
+
+interface RealClicksRequestBody {
+  startDate: string
+  endDate: string
+  networks?: string[]
+  campaigns?: string[]
+  tableFilters?: ClickTableFilters
+  page?: number
+  limit?: number
+}
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
 
 export async function POST(request: NextRequest) {
@@ -13,8 +39,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { startDate, endDate, networks, campaigns, tableFilters, page = 1, limit = 50 } = body
+    const body = await request.json() as RealClicksRequestBody
+    const {
+      startDate,
+      endDate,
+      campaigns = [],
+      tableFilters,
+      page = 1,
+      limit = 50
+    } = body
+    const networks = body.networks ?? []
 
     // Check cache first
     const cacheKey = createCacheKey('real-clicks', { 
@@ -28,7 +62,7 @@ export async function POST(request: NextRequest) {
       limit
     })
     
-    const cachedData = apiCache.get(cacheKey)
+    const cachedData = apiCache.get<ClicksApiResponse>(cacheKey)
     if (cachedData) {
       return NextResponse.json(cachedData)
     }
@@ -54,19 +88,25 @@ export async function POST(request: NextRequest) {
     const api = new AffiliateNetworkAPI(networkConfig)
 
     // Prepare API parameters
-    const apiParams: any = {
-      start_date: startDate.split('T')[0],
-      end_date: endDate.split('T')[0],
-      limit,
-      page
+    const startDateISO = startDate.split('T')[0]
+    const endDateISO = endDate.split('T')[0]
+    const startAtRow = page > 1 ? (page - 1) * limit + 1 : 1
+    const apiParams: ClicksRequestParams = {
+      start_date: startDateISO,
+      end_date: endDateISO,
+      include_duplicates: true,
+      row_limit: limit,
+      start_at_row: startAtRow
     }
 
     // Add filters - only if specific campaigns selected
     // Empty campaigns array means fetch ALL campaigns
-    if (campaigns && campaigns.length > 0) {
-      // Note: Affluent API only supports single campaign_id
-      // For multiple campaigns, we'd need multiple API calls
-      apiParams.campaign_id = campaigns[0]
+    if (campaigns.length > 0) {
+      // Note: Affluent API only supports single campaign_id; use the first selected campaign
+      const campaignId = Number(campaigns[0])
+      if (Number.isFinite(campaignId)) {
+        apiParams.campaign_id = campaignId
+      }
       console.log('🎯 [REAL-CLICKS] Filtering for campaign:', campaigns[0])
     } else {
       console.log('📊 [REAL-CLICKS] Fetching ALL campaigns data')
@@ -85,12 +125,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Transform API response to match our interface
-    const transformedClicks = clicksResponse.data.map(click => ({
+    const transformedClicks: ClickData[] = clicksResponse.data.map(click => ({
       id: click.unique_click_id || click.tracking_id,
       dateTime: click.click_date,
       offerName: click.offer?.offer_name || click.redirect_from_offer?.offer_name || 'Unknown Offer',
       subId: click.subid_1 || '',
-      subId2: click.subid_2 || ''
+      subId2: click.subid_2 || '',
+      campaignId: click.campaign_id ? String(click.campaign_id) : '',
+      price: click.price
     }))
 
     // Apply client-side filters if needed
@@ -98,8 +140,9 @@ export async function POST(request: NextRequest) {
     
     if (tableFilters) {
       if (tableFilters.offerName && tableFilters.offerName !== 'all') {
+        const offerNameFilter = tableFilters.offerName.toLowerCase()
         filteredClicks = filteredClicks.filter(click => 
-          click.offerName.toLowerCase().includes(tableFilters.offerName.toLowerCase())
+          click.offerName.toLowerCase().includes(offerNameFilter)
         )
       }
       
@@ -118,7 +161,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const responseData = {
+    const responseData: ClicksApiResponse = {
       clicks: filteredClicks,
       totalCount: filteredClicks.length, // In a real implementation, this should come from the API
       page,

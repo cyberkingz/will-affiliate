@@ -1,8 +1,14 @@
 // Simple in-memory cache for API responses
+interface CacheEntry<T> {
+  data: T
+  timestamp: number
+  ttl: number
+}
+
 class APICache {
-  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>()
+  private cache = new Map<string, CacheEntry<unknown>>()
   
-  set(key: string, data: any, ttlMinutes: number = 5): void {
+  set<T>(key: string, data: T, ttlMinutes: number = 5): void {
     const ttl = ttlMinutes * 60 * 1000 // Convert to milliseconds
     this.cache.set(key, {
       data,
@@ -11,7 +17,7 @@ class APICache {
     })
   }
   
-  get(key: string): any | null {
+  get<T>(key: string): T | null {
     const cached = this.cache.get(key)
     
     if (!cached) {
@@ -24,7 +30,7 @@ class APICache {
       return null
     }
     
-    return cached.data
+    return cached.data as T
   }
   
   delete(key: string): void {
@@ -55,13 +61,13 @@ if (typeof window !== 'undefined') {
   }, 10 * 60 * 1000)
 }
 
-export function createCacheKey(prefix: string, params: Record<string, any>): string {
+export function createCacheKey(prefix: string, params: Record<string, unknown>): string {
   const sortedParams = Object.keys(params)
     .sort()
-    .reduce((result, key) => {
+    .reduce<Record<string, unknown>>((result, key) => {
       result[key] = params[key]
       return result
-    }, {} as Record<string, any>)
+    }, {})
   
   return `${prefix}_${JSON.stringify(sortedParams)}`
 }

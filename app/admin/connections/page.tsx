@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { AdminLayout } from '@/components/admin/admin-layout'
 
 // Lazy load admin components to reduce initial bundle size
@@ -27,10 +27,11 @@ import { Database } from '@/types/supabase'
 
 type NetworkConnection = Database['public']['Tables']['network_connections']['Row']
 type NetworkConnectionInsert = Database['public']['Tables']['network_connections']['Insert']
+type UserRow = Database['public']['Tables']['users']['Row']
 
 export default function ConnectionsPage() {
   const [connections, setConnections] = useState<NetworkConnection[]>([])
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<UserRow | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingConnection, setEditingConnection] = useState<NetworkConnection | null>(null)
@@ -39,12 +40,7 @@ export default function ConnectionsPage() {
   
   const supabase = createClient()
 
-  useEffect(() => {
-    fetchUser()
-    fetchConnections()
-  }, [])
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (authUser) {
       const { data: userData } = await supabase
@@ -54,9 +50,9 @@ export default function ConnectionsPage() {
         .single()
       setUser(userData)
     }
-  }
+  }, [supabase])
 
-  const fetchConnections = async () => {
+  const fetchConnections = useCallback(async () => {
     setIsLoading(true)
     try {
       const { data, error } = await supabase
@@ -76,7 +72,12 @@ export default function ConnectionsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [supabase, toast])
+
+  useEffect(() => {
+    fetchUser()
+    fetchConnections()
+  }, [fetchUser, fetchConnections])
 
   const handleSubmit = async (formData: NetworkConnectionInsert) => {
     setIsSubmitting(true)

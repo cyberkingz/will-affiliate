@@ -9,11 +9,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { NetworkConnection } from '../types/team.types'
 
+type UserRole = 'admin' | 'manager' | 'analyst'
+
+interface NewUserFormData {
+  email: string
+  fullName: string
+  role: UserRole
+  networkAccess: string[]
+}
+
+export type AddUserFormData = NewUserFormData
+
+const isUserRole = (value: string): value is UserRole => {
+  return value === 'admin' || value === 'manager' || value === 'analyst'
+}
+
 interface AddUserModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   availableNetworks: NetworkConnection[]
-  onUserCreated: (userData: any) => void
+  onUserCreated: (userData: NewUserFormData) => void
 }
 
 export function AddUserModal({
@@ -23,10 +38,10 @@ export function AddUserModal({
   onUserCreated
 }: AddUserModalProps) {
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<NewUserFormData>({
     email: '',
     fullName: '',
-    role: 'analyst' as 'admin' | 'manager' | 'analyst',
+    role: 'analyst',
     networkAccess: [] as string[]
   })
 
@@ -121,7 +136,11 @@ export function AddUserModal({
                 <Label htmlFor="role">Role</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, role: value as any }))}
+                  onValueChange={(value) => {
+                    if (isUserRole(value)) {
+                      setFormData(prev => ({ ...prev, role: value }))
+                    }
+                  }}
                 >
                   <SelectTrigger className="bg-neutral-800 border-neutral-700">
                     <SelectValue />
@@ -163,7 +182,7 @@ export function AddUserModal({
                       </div>
                       <Checkbox
                         checked={formData.networkAccess.includes(network.id)}
-                        onCheckedChange={(checked) => handleNetworkToggle(network.id, checked as boolean)}
+                        onCheckedChange={(checked) => handleNetworkToggle(network.id, checked === true)}
                       />
                     </div>
                   ))}

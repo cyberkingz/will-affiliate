@@ -3,6 +3,41 @@ import { createClient } from '@/lib/supabase/server'
 import { AffiliateNetworkAPI, defaultNetworkConfig } from '@/lib/api/affiliate-network'
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
 
+type ConversionsRequestParams = Parameters<AffiliateNetworkAPI['getConversions']>[0]
+
+type ConversionTableFilters = {
+  offerName?: string
+  subId?: string
+  subId2?: string
+}
+
+interface ConversionRow {
+  id: string
+  dateTime: string
+  offerName: string
+  subId: string
+  subId2: string
+  price: number
+}
+
+interface ConversionsApiResponse {
+  conversions: ConversionRow[]
+  totalCount: number
+  page: number
+  limit: number
+  hasNextPage: boolean
+}
+
+interface RealConversionsRequestBody {
+  startDate: string
+  endDate: string
+  campaigns?: string[]
+  tableFilters?: ConversionTableFilters
+  page?: number
+  limit?: number
+  networks?: string[]
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -13,8 +48,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { startDate, endDate, networks, campaigns, tableFilters, page = 1, limit = 50 } = body
+    const body = await request.json() as RealConversionsRequestBody
+    const {
+      startDate,
+      endDate,
+      campaigns = [],
+      tableFilters,
+      page = 1,
+      limit = 50
+    } = body
+    const networks = body.networks ?? []
 
     // Check cache first
     const cacheKey = createCacheKey('real-conversions', { 
@@ -28,7 +71,7 @@ export async function POST(request: NextRequest) {
       limit
     })
     
-    const cachedData = apiCache.get(cacheKey)
+    const cachedData = apiCache.get<ConversionsApiResponse>(cacheKey)
     if (cachedData) {
       return NextResponse.json(cachedData)
     }
@@ -49,21 +92,23 @@ export async function POST(request: NextRequest) {
       ...defaultNetworkConfig,
       affiliateId: userNetworks[0].affiliate_id || defaultNetworkConfig.affiliateId,
       apiKey: userNetworks[0].api_key || defaultNetworkConfig.apiKey,
-      baseUrl: userNetworks[0].api_url || defaultNetworkConfig.baseUrl
+      baseUrl: defaultNetworkConfig.baseUrl
     }
     
     const api = new AffiliateNetworkAPI(networkConfig)
 
     // Prepare API parameters
-    const apiParams: any = {
-      start_date: startDate.split('T')[0],
-      end_date: endDate.split('T')[0],
+    const startDateISO = startDate.split('T')[0]
+    const endDateISO = endDate.split('T')[0]
+    const apiParams: ConversionsRequestParams = {
+      start_date: startDateISO,
+      end_date: endDateISO,
       limit,
       page
     }
 
     // Add filters
-    if (campaigns && campaigns.length > 0) {
+    if (campaigns.length > 0) {
       apiParams.campaign_id = campaigns[0]
     }
 
@@ -80,7 +125,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Transform API response to match our interface
-    const transformedConversions = conversionsResponse.data.map(conversion => ({
+    const transformedConversions: ConversionRow[] = conversionsResponse.data.map(conversion => ({
       id: conversion.conversion_id || conversion.transaction_id,
       dateTime: conversion.datetime,
       offerName: conversion.offer_name || 'Unknown Offer',
@@ -94,8 +139,9 @@ export async function POST(request: NextRequest) {
     
     if (tableFilters) {
       if (tableFilters.offerName && tableFilters.offerName !== 'all') {
+        const offerNameFilter = tableFilters.offerName.toLowerCase()
         filteredConversions = filteredConversions.filter(conversion => 
-          conversion.offerName.toLowerCase().includes(tableFilters.offerName.toLowerCase())
+          conversion.offerName.toLowerCase().includes(offerNameFilter)
         )
       }
       
@@ -114,7 +160,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const responseData = {
+    const responseData: ConversionsApiResponse = {
       conversions: filteredConversions,
       totalCount: filteredConversions.length,
       page,

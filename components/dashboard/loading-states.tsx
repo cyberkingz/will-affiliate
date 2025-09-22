@@ -47,6 +47,12 @@ export interface NetworkStatus {
 }
 
 // Enhanced loading hook with error handling
+interface StartLoadingOptions {
+  timeout?: number
+  maxRetries?: number
+  onProgress?: (step: string, progress: number) => void
+}
+
 export const useDataLoading = () => {
   const [loadingState, setLoadingState] = useState<LoadingState>({
     isLoading: false,
@@ -61,38 +67,34 @@ export const useDataLoading = () => {
   const [startTime, setStartTime] = useState<number | null>(null)
 
   // Simulate data loading with real API integration
-  const startLoading = useCallback(async (
-    dataFetcher: () => Promise<any>,
-    options: {
-      timeout?: number
-      maxRetries?: number
-      onProgress?: (step: string, progress: number) => void
-    } = {}
-  ) => {
-    const { timeout = 30000, maxRetries = 3, onProgress } = options
+  const startLoading = useCallback(
+    async <T,>(
+      dataFetcher: () => Promise<T>,
+      options: StartLoadingOptions = {}
+    ): Promise<T> => {
+      const { timeout = 30000, maxRetries = 3, onProgress } = options
     
-    setLoadingState(prev => ({
-      ...prev,
-      isLoading: true,
-      progress: 0,
-      error: null,
-      canRetry: false
-    }))
+      setLoadingState(prev => ({
+        ...prev,
+        isLoading: true,
+        progress: 0,
+        error: null,
+        canRetry: false
+      }))
     
-    setStartTime(Date.now())
+      const startTimestamp = Date.now()
+      setStartTime(startTimestamp)
     
-    // Progress tracking
-    const progressInterval = setInterval(() => {
-      if (startTime) {
-        const elapsed = Date.now() - startTime
+      // Progress tracking
+      const progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTimestamp
         setLoadingState(prev => ({
           ...prev,
           timeElapsed: Math.floor(elapsed / 1000)
         }))
-      }
-    }, 1000)
+      }, 1000)
 
-    try {
+      try {
       // Step 1: Connection
       setLoadingState(prev => ({ ...prev, currentStep: 'Connecting to network...', progress: 10 }))
       onProgress?.('Connecting to network...', 10)
@@ -104,7 +106,7 @@ export const useDataLoading = () => {
       
       const data = await Promise.race([
         dataFetcher(),
-        new Promise((_, reject) => 
+        new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Request timeout')), timeout)
         )
       ])
@@ -122,26 +124,30 @@ export const useDataLoading = () => {
       setRetryCount(0)
       return data
 
-    } catch (error: any) {
-      clearInterval(progressInterval)
-      
-      const loadingError: LoadingError = {
-        type: error.message.includes('timeout') ? 'timeout' : 
-              error.message.includes('fetch') ? 'network' : 'api',
-        message: error.message,
-        retryable: retryCount < maxRetries
+      } catch (error) {
+        clearInterval(progressInterval)
+
+        const normalizedError = error instanceof Error ? error : new Error(String(error))
+        const isTimeout = normalizedError.message.includes('timeout')
+        const isNetwork = normalizedError.message.includes('fetch')
+
+        const loadingError: LoadingError = {
+          type: isTimeout ? 'timeout' : isNetwork ? 'network' : 'api',
+          message: normalizedError.message,
+          retryable: retryCount < maxRetries,
+          severity: isTimeout ? 'medium' : 'high'
+        }
+
+        setLoadingState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: loadingError.message,
+          canRetry: loadingError.retryable
+        }))
+
+        throw loadingError
       }
-
-      setLoadingState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: loadingError.message,
-        canRetry: loadingError.retryable
-      }))
-
-      throw loadingError
-    }
-  }, [retryCount, startTime])
+    }, [retryCount])
 
   const retry = useCallback(() => {
     setRetryCount(prev => prev + 1)
@@ -798,6 +804,7 @@ export const NetworkStatusIndicator: React.FC<{
   return (
     <motion.div 
       className={`flex items-center gap-2 text-xs relative ${className}`}
+      style={{ position: 'relative', zIndex: showTooltip ? 50 : 'auto' }}
       whileHover={{ scale: 1.05 }}
       onHoverStart={() => setShowTooltip(true)}
       onHoverEnd={() => setShowTooltip(false)}
@@ -828,10 +835,11 @@ export const NetworkStatusIndicator: React.FC<{
       <AnimatePresence>
         {showTooltip && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 5 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 5 }}
-            className="absolute bottom-full right-0 mb-2 p-3 bg-neutral-800 border border-neutral-700 rounded-lg shadow-lg z-50 min-w-48"
+            initial={{ opacity: 0, scale: 0.9, x: 5 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.9, x: 5 }}
+            className="absolute top-1/2 right-full -translate-y-1/2 mr-2 p-3 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-[100] min-w-48 pointer-events-none"
+            style={{ zIndex: 9999 }}
           >
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
@@ -863,8 +871,8 @@ export const NetworkStatusIndicator: React.FC<{
               </div>
             </div>
             
-            {/* Tooltip arrow */}
-            <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-neutral-800" />
+            {/* Tooltip arrow pointing right */}
+            <div className="absolute top-1/2 left-full -translate-y-1/2 w-0 h-0 border-t-4 border-b-4 border-l-4 border-transparent border-l-neutral-800" />
           </motion.div>
         )}
       </AnimatePresence>

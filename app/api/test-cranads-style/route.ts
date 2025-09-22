@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { AffluentRecord } from '@/lib/api/affiliate-network'
+
+const normalizeError = (error: unknown): Error => (
+  error instanceof Error ? error : new Error(String(error))
+)
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,10 +49,11 @@ export async function GET(request: NextRequest) {
         sampleData: clicksData.data?.[0] || null
       })
     } catch (error) {
+      const apiError = normalizeError(error)
       tests.push({
         name: 'Clicks API',
         success: false,
-        error: error.message
+        error: apiError.message
       })
     }
 
@@ -71,10 +77,11 @@ export async function GET(request: NextRequest) {
         sampleData: summaryData.data?.[0] || null
       })
     } catch (error) {
+      const apiError = normalizeError(error)
       tests.push({
         name: 'Campaign Summary',
         success: false,
-        error: error.message
+        error: apiError.message
       })
     }
 
@@ -98,10 +105,11 @@ export async function GET(request: NextRequest) {
         sampleData: campaignData.data?.[0] || null
       })
     } catch (error) {
+      const apiError = normalizeError(error)
       tests.push({
         name: 'Campaign API', 
         success: false,
-        error: error.message
+        error: apiError.message
       })
     }
 
@@ -118,9 +126,12 @@ export async function GET(request: NextRequest) {
       })
       
       const offersData = await offersResponse.json()
+      const offersFeed: AffluentRecord[] = Array.isArray(offersData.data)
+        ? (offersData.data as AffluentRecord[])
+        : []
       
       // Count offers with campaign IDs
-      const offersWithCampaigns = offersData.data?.filter(o => o.campaign_id) || []
+      const offersWithCampaigns = offersFeed.filter(o => o.campaign_id)
       
       tests.push({
         name: 'Offers Feed',
@@ -130,10 +141,11 @@ export async function GET(request: NextRequest) {
         sampleOfferWithCampaign: offersWithCampaigns[0] || null
       })
     } catch (error) {
+      const apiError = normalizeError(error)
       tests.push({
         name: 'Offers Feed',
         success: false,
-        error: error.message
+        error: apiError.message
       })
     }
 
@@ -151,10 +163,11 @@ export async function GET(request: NextRequest) {
     })
     
   } catch (error) {
-    console.error('❌ [CRANADS-TEST] Error:', error)
+    const apiError = normalizeError(error)
+    console.error('❌ [CRANADS-TEST] Error:', apiError)
     return NextResponse.json({
-      error: error.message,
-      stack: error.stack
+      error: apiError.message,
+      stack: apiError.stack
     }, { status: 500 })
   }
 }

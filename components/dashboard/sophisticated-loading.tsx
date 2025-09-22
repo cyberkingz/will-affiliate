@@ -19,7 +19,7 @@ import {
 interface LoadingPhase {
   id: number
   label: string
-  icon: React.ComponentType<any>
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   description: string
   minProgress: number
   maxProgress: number
@@ -97,7 +97,7 @@ export function SophisticatedLoading({
     return 'very_complex'
   }, [dateRange, expectedDataPoints])
 
-  // Adaptive timing based on complexity
+  // Adaptive timing based on complexity and network
   const adaptiveLoadingTime = React.useMemo(() => {
     const baseTime = loadingTimeEstimate
     const complexityMultiplier = {
@@ -107,8 +107,11 @@ export function SophisticatedLoading({
       very_complex: 2.0
     }[dataComplexity]
     
-    return baseTime * complexityMultiplier
-  }, [loadingTimeEstimate, dataComplexity])
+    // Affluent API is consistently slow, add extra time
+    const networkMultiplier = networks.includes('Affluent') || networks.includes('affluent') ? 1.5 : 1.0
+    
+    return baseTime * complexityMultiplier * networkMultiplier
+  }, [loadingTimeEstimate, dataComplexity, networks])
 
   const updateProgress = useCallback(() => {
     const elapsed = Date.now() - startTime
@@ -145,12 +148,20 @@ export function SophisticatedLoading({
     const phase = LOADING_PHASES[currentPhase]
     if (!phase) return ''
 
+    const isAffluent = networks.some(n => n.toLowerCase() === 'affluent')
+
     if (currentPhase === 0) {
+      if (isAffluent) {
+        return `Connecting to Affluent API (typically 600-800ms response time)`
+      }
       return `Connecting to ${networks.join(', ')} network${networks.length > 1 ? 's' : ''}`
     }
     
     if (currentPhase === 1) {
       const pointsText = expectedDataPoints ? `${expectedDataPoints} data points` : 'performance metrics'
+      if (isAffluent) {
+        return `Fetching ${pointsText} from Affluent (this network has high latency)`
+      }
       return `Fetching ${pointsText} for selected period`
     }
     
@@ -177,16 +188,30 @@ export function SophisticatedLoading({
             </div>
             {title}
           </CardTitle>
-          {onCancel && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onCancel}
-              className="text-neutral-400 hover:text-white hover:bg-neutral-800"
+          
+          {/* Prominent percentage indicator */}
+          <div className="flex items-center gap-4">
+            <motion.div 
+              className="bg-blue-500/20 border border-blue-500/30 rounded-lg px-4 py-2 flex items-center gap-2"
+              animate={{ scale: [1, 1.02, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
             >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+              <div className="text-3xl font-bold text-blue-400">
+                {Math.round(progress)}
+              </div>
+              <div className="text-blue-300 text-sm font-medium">%</div>
+            </motion.div>
+            {onCancel && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onCancel}
+                className="text-neutral-400 hover:text-white hover:bg-neutral-800"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       
@@ -195,11 +220,14 @@ export function SophisticatedLoading({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-neutral-300">Progress</span>
-            <div className="flex items-center gap-2 text-neutral-400">
-              <Clock className="h-3 w-3" />
-              <span>{formatTime(elapsedTime)}</span>
-              <span>•</span>
-              <span>{Math.round(progress)}%</span>
+            <div className="flex items-center gap-3 text-neutral-400">
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span>{formatTime(elapsedTime)}</span>
+              </div>
+              <div className="text-xl font-bold text-blue-400">
+                {Math.round(progress)}%
+              </div>
             </div>
           </div>
           <Progress 
@@ -297,10 +325,10 @@ export function SophisticatedLoading({
                 <AlertCircle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <div className="font-medium text-yellow-300 mb-1">
-                    Loading is taking longer than expected
+                    Affluent API Response Time: Slow
                   </div>
                   <div className="text-sm text-yellow-200/80 mb-3">
-                    The affiliate network might be experiencing high traffic. This is normal during peak hours.
+                    The Affluent API typically has high latency (600-800ms per request). This is normal behavior for this network. Your data will load shortly.
                   </div>
                   {onRetry && (
                     <Button

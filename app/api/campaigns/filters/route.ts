@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { AffiliateNetworkAPI, defaultNetworkConfig } from '@/lib/api/affiliate-network'
+import { AffiliateNetworkAPI, defaultNetworkConfig, AffluentRecord } from '@/lib/api/affiliate-network'
+
+const toIdString = (value: unknown): string | null => {
+  if (typeof value === 'string' && value.length > 0) {
+    return value
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value.toString()
+  }
+  return null
+}
+
+const getRecordString = (record: AffluentRecord, key: string): string | null => {
+  const value = record[key]
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+const normalizeError = (error: unknown): Error => {
+  return error instanceof Error ? error : new Error(String(error))
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,8 +53,8 @@ export async function GET(request: NextRequest) {
 
     // Fetch campaigns from Affluent offers API
     console.log('🎯 [FILTERS] Starting campaign fetch from Affluent offers API...')
-    let uniqueCampaigns = []
-    let api
+    let uniqueCampaigns: Array<{ id: string; name: string }> = []
+    let api: AffiliateNetworkAPI | null = null
     
     try {
       // Initialize API client with default config
@@ -70,11 +89,13 @@ export async function GET(request: NextRequest) {
         const campaignMap = new Map()
         let offersWithCampaigns = 0
         
-        offersResponse.data.forEach(offer => {
-          if (offer.campaign_id && offer.offer_name) {
-            campaignMap.set(offer.campaign_id, {
-              id: offer.campaign_id.toString(),
-              name: offer.offer_name
+        offersResponse.data.forEach((offerRecord: AffluentRecord) => {
+          const campaignId = toIdString(offerRecord['campaign_id'])
+          const offerName = getRecordString(offerRecord, 'offer_name')
+          if (campaignId && offerName) {
+            campaignMap.set(campaignId, {
+              id: campaignId,
+              name: offerName
             })
             offersWithCampaigns++
           }
@@ -89,11 +110,13 @@ export async function GET(request: NextRequest) {
         if (uniqueCampaigns.length === 0) {
           console.log('🔄 [FILTERS] No campaign IDs found, using offer names as campaigns...')
           const offerMap = new Map()
-          offersResponse.data.slice(0, 20).forEach((offer, index) => {
-            if (offer.offer_name) {
-              offerMap.set(offer.offer_id, {
-                id: offer.offer_id.toString(),
-                name: offer.offer_name
+          offersResponse.data.slice(0, 20).forEach((offerRecord: AffluentRecord) => {
+            const offerId = toIdString(offerRecord['offer_id'])
+            const offerName = getRecordString(offerRecord, 'offer_name')
+            if (offerId && offerName) {
+              offerMap.set(offerId, {
+                id: offerId,
+                name: offerName
               })
             }
           })
@@ -104,10 +127,11 @@ export async function GET(request: NextRequest) {
         console.log('⚠️ [FILTERS] No offers data returned from API')
       }
     } catch (error) {
-      console.error('❌ [FILTERS] Failed to fetch offers from API:', error)
+      const apiError = normalizeError(error)
+      console.error('❌ [FILTERS] Failed to fetch offers from API:', apiError)
       console.error('🔍 [FILTERS] Error details:', {
-        message: error.message,
-        stack: error.stack
+        message: apiError.message,
+        stack: apiError.stack
       })
     }
 
@@ -118,7 +142,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch sub IDs from API clicks data  
     console.log('🏷️ [FILTERS] Starting sub IDs fetch from Affluent API...')
-    let uniqueSubIds = []
+    let uniqueSubIds: string[] = []
     
     try {
       // Get clicks from current month to find sub IDs (month-to-date)
@@ -127,51 +151,57 @@ export async function GET(request: NextRequest) {
       startDate.setDate(1) // First day of current month
       
       console.log('🚀 [FILTERS] Making API call to getClicks for sub IDs...')
-      const clicksResponse = await api.getClicks({
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        row_limit: 10000
-      })
-      
-      console.log('📥 [FILTERS] Clicks API Response:', {
-        success: clicksResponse.success,
-        dataLength: clicksResponse.data?.length || 0,
-        message: clicksResponse.message
-      })
-      
-      if (clicksResponse.success && clicksResponse.data.length > 0) {
-        console.log('✅ [FILTERS] Processing clicks data for sub IDs...')
-        console.log('📊 [FILTERS] Total clicks to process:', clicksResponse.data.length)
-        
-        const subIdSet = new Set()
-        let subId1Count = 0, subId2Count = 0, subId3Count = 0, subId4Count = 0, subId5Count = 0
-        
-        clicksResponse.data.forEach(click => {
-          if (click.subid_1) { subIdSet.add(click.subid_1); subId1Count++ }
-          if (click.subid_2) { subIdSet.add(click.subid_2); subId2Count++ }
-          if (click.subid_3) { subIdSet.add(click.subid_3); subId3Count++ }
-          if (click.subid_4) { subIdSet.add(click.subid_4); subId4Count++ }
-          if (click.subid_5) { subIdSet.add(click.subid_5); subId5Count++ }
-        })
-        
-        uniqueSubIds = Array.from(subIdSet).filter(Boolean)
-        console.log('🏷️ [FILTERS] Sub ID statistics:', {
-          subid_1_clicks: subId1Count,
-          subid_2_clicks: subId2Count,
-          subid_3_clicks: subId3Count,
-          subid_4_clicks: subId4Count,
-          subid_5_clicks: subId5Count,
-          unique_subids: uniqueSubIds.length
-        })
-        console.log('📋 [FILTERS] All unique sub IDs found:', uniqueSubIds)
+      if (!api) {
+        console.warn('⚠️ [FILTERS] API client not initialized, skipping sub ID fetch')
+        uniqueSubIds = []
       } else {
-        console.log('⚠️ [FILTERS] No clicks data returned from API')
+        const clicksResponse = await api.getClicks({
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0],
+          row_limit: 10000
+        })
+
+        console.log('📥 [FILTERS] Clicks API Response:', {
+          success: clicksResponse.success,
+          dataLength: clicksResponse.data?.length || 0,
+          message: clicksResponse.message
+        })
+
+        if (clicksResponse.success && clicksResponse.data.length > 0) {
+          console.log('✅ [FILTERS] Processing clicks data for sub IDs...')
+          console.log('📊 [FILTERS] Total clicks to process:', clicksResponse.data.length)
+
+          const subIdSet = new Set<string>()
+          let subId1Count = 0, subId2Count = 0, subId3Count = 0, subId4Count = 0, subId5Count = 0
+
+          clicksResponse.data.forEach(click => {
+            if (click.subid_1) { subIdSet.add(click.subid_1); subId1Count++ }
+            if (click.subid_2) { subIdSet.add(click.subid_2); subId2Count++ }
+            if (click.subid_3) { subIdSet.add(click.subid_3); subId3Count++ }
+            if (click.subid_4) { subIdSet.add(click.subid_4); subId4Count++ }
+            if (click.subid_5) { subIdSet.add(click.subid_5); subId5Count++ }
+          })
+
+          uniqueSubIds = Array.from(subIdSet).filter(Boolean) as string[]
+          console.log('🏷️ [FILTERS] Sub ID statistics:', {
+            subid_1_clicks: subId1Count,
+            subid_2_clicks: subId2Count,
+            subid_3_clicks: subId3Count,
+            subid_4_clicks: subId4Count,
+            subid_5_clicks: subId5Count,
+            unique_subids: uniqueSubIds.length
+          })
+          console.log('📋 [FILTERS] All unique sub IDs found:', uniqueSubIds)
+        } else {
+          console.log('⚠️ [FILTERS] No clicks data returned from API')
+        }
       }
     } catch (error) {
-      console.error('❌ [FILTERS] Failed to fetch sub IDs from API:', error)
+      const apiError = normalizeError(error)
+      console.error('❌ [FILTERS] Failed to fetch sub IDs from API:', apiError)
       console.error('🔍 [FILTERS] Error details:', {
-        message: error.message,
-        stack: error.stack
+        message: apiError.message,
+        stack: apiError.stack
       })
     }
     
@@ -195,8 +225,9 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json(response)
   } catch (error) {
-    console.error('❌ [FILTERS] Critical error in filters endpoint:', error)
-    console.error('🔍 [FILTERS] Error stack:', error.stack)
+    const apiError = normalizeError(error)
+    console.error('❌ [FILTERS] Critical error in filters endpoint:', apiError)
+    console.error('🔍 [FILTERS] Error stack:', apiError.stack)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

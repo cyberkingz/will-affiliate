@@ -5,6 +5,7 @@ import { CalendarIcon, Settings2, X, Check, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
+import type { DateRange } from 'react-day-picker'
 import {
   Popover,
   PopoverContent,
@@ -122,9 +123,9 @@ export function FilterPanel({
     }
   }
 
-  const handleDateRangeSelect = (range: { from: Date; to: Date } | undefined) => {
+  const handleDateRangeSelect = (range: DateRange | undefined) => {
     if (range?.from && range?.to) {
-      updateFilters({ dateRange: range })
+      updateFilters({ dateRange: { from: range.from, to: range.to } })
       setSelectedDateTemplate(undefined) // Clear template selection for custom range
     }
   }

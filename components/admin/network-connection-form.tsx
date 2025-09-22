@@ -20,7 +20,7 @@ type NetworkConnection = Database['public']['Tables']['network_connections']['Ro
 type NetworkConnectionInsert = Database['public']['Tables']['network_connections']['Insert']
 
 interface NetworkConnectionFormProps {
-  connection?: NetworkConnection
+  connection?: NetworkConnection | null
   onSubmit: (data: NetworkConnectionInsert) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
@@ -69,7 +69,7 @@ export function NetworkConnectionForm({
     }
   }
 
-  const updateFormData = (field: keyof NetworkConnectionInsert, value: any) => {
+  const updateFormData = <K extends keyof NetworkConnectionInsert>(field: K, value: NetworkConnectionInsert[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 

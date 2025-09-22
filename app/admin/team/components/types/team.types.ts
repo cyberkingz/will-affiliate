@@ -51,5 +51,5 @@ export interface NetworkAccessChange {
 export interface BulkAction {
   type: 'role_change' | 'deactivate' | 'activate' | 'delete'
   userIds: string[]
-  data?: any
+  data?: Record<string, unknown>
 }

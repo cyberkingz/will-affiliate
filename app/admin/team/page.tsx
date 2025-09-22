@@ -7,9 +7,12 @@ import { UserManagementTable } from './components/user-management-table'
 import { PermissionMatrix } from './components/permission-matrix'
 import { ActivityMonitoringDashboard } from './components/activity-monitoring-dashboard'
 import { AddUserModal } from './components/modals/add-user-modal'
+import type { AddUserFormData } from './components/modals/add-user-modal'
 import { NetworkAccessModal } from './components/modals/network-access-modal'
 import { UserActivityModal } from './components/modals/user-activity-modal'
 import { TeamUser, TeamStats, NetworkConnection, UserActivityMetrics } from './components/types/team.types'
+
+type TabId = 'users' | 'permissions' | 'activity'
 
 // Mock data for demonstration
 const mockUsers: TeamUser[] = [
@@ -89,6 +92,7 @@ const mockAuthUser = {
   email: 'admin@willaffiliate.com',
   full_name: 'John Admin',
   role: 'admin' as const,
+  timezone: 'UTC',
   created_at: '2025-01-01T09:00:00',
   updated_at: '2025-01-21T10:30:00'
 }
@@ -96,7 +100,7 @@ const mockAuthUser = {
 export default function TeamManagementPage() {
   const [users, setUsers] = useState<TeamUser[]>(mockUsers)
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
-  const [activeTab, setActiveTab] = useState<'users' | 'permissions' | 'activity'>('users')
+  const [activeTab, setActiveTab] = useState<TabId>('users')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   
   // Modal states
@@ -132,13 +136,13 @@ export default function TeamManagementPage() {
     ))
   }
 
-  const handleUserCreated = (userData: any) => {
+  const handleUserCreated = (userData: AddUserFormData) => {
     console.log('User created:', userData)
     setShowAddUserModal(false)
     // Will integrate with backend API
   }
 
-  const selectedUser = selectedUserId ? users.find(u => u.id === selectedUserId) : null
+  const selectedUser = selectedUserId ? users.find(u => u.id === selectedUserId) ?? null : null
 
   return (
     <DashboardLayout user={mockAuthUser}>
@@ -154,14 +158,16 @@ export default function TeamManagementPage() {
         {/* Tab Navigation */}
         <div className="border-b border-neutral-800">
           <nav className="-mb-px flex space-x-8">
-            {[
-              { id: 'users', label: 'User Management', count: users.length },
-              { id: 'permissions', label: 'Network Permissions', count: mockNetworks.length },
-              { id: 'activity', label: 'Activity Monitoring', count: users.filter(u => u.status === 'active').length }
-            ].map((tab) => (
+            {(
+              [
+                { id: 'users', label: 'User Management', count: users.length },
+                { id: 'permissions', label: 'Network Permissions', count: mockNetworks.length },
+                { id: 'activity', label: 'Activity Monitoring', count: users.filter(u => u.status === 'active').length }
+              ] as Array<{ id: TabId; label: string; count: number }>
+            ).map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`
                   py-2 px-1 border-b-2 font-medium text-sm
                   ${activeTab === tab.id

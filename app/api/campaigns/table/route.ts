@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }))
 
     // Sort by revenue desc
-    campaigns.sort((a, b) => b.revenue - a.revenue)
+    campaignsData.sort((a, b) => b.revenue - a.revenue)
 
     return NextResponse.json({ campaigns: campaignsData })
   } catch (error) {

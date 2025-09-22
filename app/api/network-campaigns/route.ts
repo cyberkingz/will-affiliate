@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { AffiliateNetworkAPI, defaultNetworkConfig } from '@/lib/api/affiliate-network'
+import { AffiliateNetworkAPI, defaultNetworkConfig, AffluentRecord } from '@/lib/api/affiliate-network'
+
+const getOfferStatusName = (offer: AffluentRecord): string => {
+  const status = offer['offer_status']
+  if (status && typeof status === 'object' && status !== null) {
+    const statusName = (status as Record<string, unknown>)['offer_status_name']
+    if (typeof statusName === 'string') {
+      return statusName
+    }
+  }
+  return 'Unknown'
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,25 +63,29 @@ export async function GET(request: NextRequest) {
         rowCount: offersResponse.row_count
       })
 
-      let campaigns = []
+      let campaigns: Array<{ id: string; name: string; campaignId: number | null; status?: string }> = []
 
-      if (offersResponse.success && offersResponse.data.length > 0) {
+      const offers: AffluentRecord[] = Array.isArray(offersResponse.data)
+        ? (offersResponse.data as AffluentRecord[])
+        : []
+
+      if (offersResponse.success && offers.length > 0) {
         console.log('✅ [NETWORK-CAMPAIGNS] Processing offers...')
         
         // Log complete structure of first offer to understand architecture
         console.log('🔍 [NETWORK-CAMPAIGNS] Complete structure of first offer:')
-        console.log(JSON.stringify(offersResponse.data[0], null, 2))
+        console.log(JSON.stringify(offers[0], null, 2))
         
         // Log all available fields across all offers
         const allFields = new Set()
-        offersResponse.data.forEach(offer => {
+        offers.forEach((offer) => {
           Object.keys(offer).forEach(key => allFields.add(key))
         })
         console.log('📋 [NETWORK-CAMPAIGNS] All available fields in offers:', Array.from(allFields).sort())
         
         // Log campaign and sub ID data specifically
         console.log('🎯 [NETWORK-CAMPAIGNS] Campaign and SubID analysis:')
-        offersResponse.data.forEach((offer, index) => {
+        offers.forEach((offer, index) => {
           console.log(`  Offer ${index + 1}:`, {
             offer_id: offer.offer_id,
             offer_name: offer.offer_name,
@@ -79,13 +94,13 @@ export async function GET(request: NextRequest) {
             vertical_name: offer.vertical_name,
             price: offer.price,
             price_format: offer.price_format,
-            status: offer.offer_status?.offer_status_name,
+            status: getOfferStatusName(offer),
             // Look for any sub_id related fields
             sub_fields: Object.keys(offer).filter(key => 
               key.toLowerCase().includes('sub') || 
               key.toLowerCase().includes('id') ||
               key.toLowerCase().includes('tracking')
-            ).reduce((acc, key) => {
+            ).reduce<Record<string, unknown>>((acc, key) => {
               acc[key] = offer[key]
               return acc
             }, {})
@@ -95,13 +110,15 @@ export async function GET(request: NextRequest) {
         // Extract offers (what affiliates choose to promote)
         let offersProcessed = 0
         
-        offersResponse.data.forEach(offer => {
-          if (offer.offer_id && offer.offer_name) {
+        offers.forEach((offer) => {
+          const offerId = offer.offer_id
+          const offerName = offer.offer_name
+          if ((typeof offerId === 'string' || typeof offerId === 'number') && typeof offerName === 'string') {
             campaigns.push({
-              id: offer.offer_id.toString(),
-              name: offer.offer_name,
-              campaignId: offer.campaign_id,
-              status: offer.offer_status?.offer_status_name || 'Unknown'
+              id: offerId.toString(),
+              name: offerName,
+              campaignId: typeof offer.campaign_id === 'number' ? offer.campaign_id : null,
+              status: getOfferStatusName(offer)
             })
             offersProcessed++
           }

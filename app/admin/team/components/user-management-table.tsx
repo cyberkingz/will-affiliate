@@ -24,6 +24,12 @@ import {
 } from 'lucide-react'
 import { TeamUser } from './types/team.types'
 
+type UserRole = TeamUser['role']
+
+const isUserRole = (value: string): value is UserRole => {
+  return value === 'admin' || value === 'manager' || value === 'analyst'
+}
+
 interface UserManagementTableProps {
   users: TeamUser[]
   onUserSelect: (userId: string) => void
@@ -172,7 +178,7 @@ export function UserManagementTable({
                 <div className="col-span-1 flex items-center">
                   <Checkbox
                     checked={selectedUsers.includes(user.id)}
-                    onCheckedChange={(checked) => handleSelectUser(user.id, checked as boolean)}
+                    onCheckedChange={(checked) => handleSelectUser(user.id, checked === true)}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </div>
@@ -213,7 +219,11 @@ export function UserManagementTable({
                   <div className="flex items-center gap-1">
                     <Select
                       value={user.role}
-                      onValueChange={(newRole) => onRoleChange(user.id, newRole as any)}
+                      onValueChange={(newRole) => {
+                        if (isUserRole(newRole)) {
+                          onRoleChange(user.id, newRole)
+                        }
+                      }}
                     >
                       <SelectTrigger className="w-24 h-8 bg-transparent border-neutral-600 text-neutral-300">
                         <SelectValue />

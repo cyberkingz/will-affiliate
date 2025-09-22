@@ -98,16 +98,14 @@ export const TrendsChart = React.memo(function TrendsChart({
     }
   }, [dateRange, isHourlyData, networks.length])
   
-  // Determine loading mode
+  // Determine loading mode - default to sophisticated loading
   const shouldUseSophisticatedLoading = useMemo(() => {
     if (forceQuickLoading) return false
-    if (!loadingProgress) return false
     
-    // Use sophisticated loading for complex datasets or slow connections
-    return loadingCharacteristics.isComplexLoad || 
-           loadingProgress.timeElapsed > 2 ||
-           networkStatus.quality === 'poor'
-  }, [forceQuickLoading, loadingProgress, loadingCharacteristics.isComplexLoad, networkStatus.quality])
+    // Always use sophisticated loading to show percentage
+    // unless explicitly forced to quick loading
+    return true
+  }, [forceQuickLoading])
 
   // Enhanced loading state logic with adaptive behavior
   if (isLoading) {
@@ -123,16 +121,13 @@ export const TrendsChart = React.memo(function TrendsChart({
               transition={{ duration: 0.3 }}
             >
               <SophisticatedLoading
-                isVisible={true}
-                chartTitle={chartTitle}
-                dataType={loadingCharacteristics.dataType as 'daily' | 'hourly'}
-                dateRange={dateRange}
-                networks={networks}
+                title={chartTitle}
                 expectedDataPoints={loadingCharacteristics.dataPoints}
-                onComplete={() => {
-                  // Loading completion handled by parent
-                }}
+                networks={networks}
+                dateRange={dateRange}
                 onCancel={onCancel}
+                onRetry={onRetry}
+                loadingTimeEstimate={loadingCharacteristics.expectedLoadTime * 1000}
               />
               
               {loadingProgress && loadingProgress.timeElapsed > loadingCharacteristics.expectedLoadTime * 1.5 && (
@@ -196,7 +191,7 @@ export const TrendsChart = React.memo(function TrendsChart({
         delay: 0.1
       }}
     >
-      <Card className="relative overflow-hidden">
+      <Card className="relative">
         {/* Subtle success animation */}
         <motion.div
           className="absolute inset-0 bg-gradient-to-r from-green-500/5 via-transparent to-blue-500/5"

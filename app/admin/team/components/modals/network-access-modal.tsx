@@ -1,17 +1,19 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { TeamUser, NetworkConnection } from '../types/team.types'
+
+type NetworkPermissions = Record<string, boolean>
 
 interface NetworkAccessModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   user: TeamUser | null
   availableNetworks: NetworkConnection[]
-  onSave: (permissions: any) => void
+  onSave: (permissions: NetworkPermissions) => void
 }
 
 export function NetworkAccessModal({
@@ -21,6 +23,18 @@ export function NetworkAccessModal({
   availableNetworks,
   onSave
 }: NetworkAccessModalProps) {
+  const [networkPermissions, setNetworkPermissions] = useState<NetworkPermissions>({})
+
+  useEffect(() => {
+    if (user) {
+      const initialPermissions = availableNetworks.reduce<NetworkPermissions>((acc, network) => {
+        acc[network.id] = user.networkAccess.includes(network.id)
+        return acc
+      }, {})
+      setNetworkPermissions(initialPermissions)
+    }
+  }, [user, availableNetworks])
+
   if (!user) return null
 
   return (
@@ -36,12 +50,20 @@ export function NetworkAccessModal({
                 <div className="font-medium">{network.name}</div>
                 <div className="text-sm text-neutral-400">Network access permissions</div>
               </div>
-              <Switch checked={user.networkAccess.includes(network.id)} />
+              <Switch
+                checked={networkPermissions[network.id] ?? false}
+                onCheckedChange={(checked) =>
+                  setNetworkPermissions(prev => ({
+                    ...prev,
+                    [network.id]: checked === true
+                  }))
+                }
+              />
             </div>
           ))}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={() => onSave({})}>Save Changes</Button>
+            <Button onClick={() => onSave(networkPermissions)}>Save Changes</Button>
           </div>
         </div>
       </DialogContent>

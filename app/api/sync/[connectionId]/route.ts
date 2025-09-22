@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { connectionId: string } }
+  context: { params: Promise<{ connectionId: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -25,7 +25,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const connectionId = params.connectionId
+    const { connectionId } = await context.params
 
     // Get the network connection
     const { data: connection, error: connectionError } = await supabase
