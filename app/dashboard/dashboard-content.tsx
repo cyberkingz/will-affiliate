@@ -169,10 +169,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
         const offerNames = filtersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
         setAvailableOfferNames([...new Set(offerNames)])
         
-        // Use real sub IDs from the API
-        const subIds = filtersData.subIds || []
-        setAvailableTableSubIds(subIds)
-        setAvailableTableSubIds2(subIds) // Usually same sub IDs are available for both fields
+        // Use separate sub ID arrays from the API for proper filtering
+        const subIds1 = filtersData.subIds1 || []
+        const subIds2 = filtersData.subIds2 || []
+        setAvailableTableSubIds(subIds1)  // Sub ID 1 values only
+        setAvailableTableSubIds2(subIds2) // Sub ID 2 values only (empty in current dataset)
       } else {
         const errorText = await filtersResponse.text()
         console.error('❌ [FRONTEND] Failed to fetch filters:', filtersResponse.status, errorText)

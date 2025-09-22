@@ -143,6 +143,11 @@ export async function GET() {
     // Fetch sub IDs from API clicks data  
     console.log('🏷️ [FILTERS] Starting sub IDs fetch from Affluent API...')
     let uniqueSubIds: string[] = []
+    let uniqueSubIds1: string[] = []
+    let uniqueSubIds2: string[] = []
+    let uniqueSubIds3: string[] = []
+    let uniqueSubIds4: string[] = []
+    let uniqueSubIds5: string[] = []
     
     try {
       // Get clicks from current month to find sub IDs (month-to-date)
@@ -171,27 +176,45 @@ export async function GET() {
           console.log('✅ [FILTERS] Processing clicks data for sub IDs...')
           console.log('📊 [FILTERS] Total clicks to process:', clicksResponse.data.length)
 
-          const subIdSet = new Set<string>()
+          const subId1Set = new Set<string>()
+          const subId2Set = new Set<string>()
+          const subId3Set = new Set<string>()
+          const subId4Set = new Set<string>()
+          const subId5Set = new Set<string>()
           let subId1Count = 0, subId2Count = 0, subId3Count = 0, subId4Count = 0, subId5Count = 0
 
           clicksResponse.data.forEach(click => {
-            if (click.subid_1) { subIdSet.add(click.subid_1); subId1Count++ }
-            if (click.subid_2) { subIdSet.add(click.subid_2); subId2Count++ }
-            if (click.subid_3) { subIdSet.add(click.subid_3); subId3Count++ }
-            if (click.subid_4) { subIdSet.add(click.subid_4); subId4Count++ }
-            if (click.subid_5) { subIdSet.add(click.subid_5); subId5Count++ }
+            if (click.subid_1) { subId1Set.add(click.subid_1); subId1Count++ }
+            if (click.subid_2) { subId2Set.add(click.subid_2); subId2Count++ }
+            if (click.subid_3) { subId3Set.add(click.subid_3); subId3Count++ }
+            if (click.subid_4) { subId4Set.add(click.subid_4); subId4Count++ }
+            if (click.subid_5) { subId5Set.add(click.subid_5); subId5Count++ }
           })
 
-          uniqueSubIds = Array.from(subIdSet).filter(Boolean) as string[]
+          uniqueSubIds1 = Array.from(subId1Set).filter(Boolean) as string[]
+          uniqueSubIds2 = Array.from(subId2Set).filter(Boolean) as string[]
+          uniqueSubIds3 = Array.from(subId3Set).filter(Boolean) as string[]
+          uniqueSubIds4 = Array.from(subId4Set).filter(Boolean) as string[]
+          uniqueSubIds5 = Array.from(subId5Set).filter(Boolean) as string[]
+          
+          // Keep legacy combined array for backward compatibility
+          uniqueSubIds = uniqueSubIds1
+          
           console.log('🏷️ [FILTERS] Sub ID statistics:', {
             subid_1_clicks: subId1Count,
             subid_2_clicks: subId2Count,
             subid_3_clicks: subId3Count,
             subid_4_clicks: subId4Count,
             subid_5_clicks: subId5Count,
-            unique_subids: uniqueSubIds.length
+            unique_subids_1: uniqueSubIds1.length,
+            unique_subids_2: uniqueSubIds2.length,
+            unique_subids_3: uniqueSubIds3.length,
+            unique_subids_4: uniqueSubIds4.length,
+            unique_subids_5: uniqueSubIds5.length
           })
-          console.log('📋 [FILTERS] All unique sub IDs found:', uniqueSubIds)
+          console.log('📋 [FILTERS] Sub ID 1 values:', uniqueSubIds1)
+          console.log('📋 [FILTERS] Sub ID 2 values:', uniqueSubIds2)
+          console.log('📋 [FILTERS] Sub ID 3 values:', uniqueSubIds3)
         } else {
           console.log('⚠️ [FILTERS] No clicks data returned from API')
         }
@@ -213,14 +236,26 @@ export async function GET() {
     const response = {
       networks: networks,
       campaigns: uniqueCampaigns,
-      subIds: uniqueSubIds
+      subIds: uniqueSubIds,     // Legacy combined array
+      subIds1: uniqueSubIds1,   // Sub ID 1 values only
+      subIds2: uniqueSubIds2,   // Sub ID 2 values only
+      subIds3: uniqueSubIds3,   // Sub ID 3 values only
+      subIds4: uniqueSubIds4,   // Sub ID 4 values only
+      subIds5: uniqueSubIds5    // Sub ID 5 values only
     }
     
     console.log('📤 [FILTERS] Final response:', {
       networksCount: response.networks.length,
       campaignsCount: response.campaigns.length,
-      subIdsCount: response.subIds.length
+      subIdsCount: response.subIds.length,
+      subIds1Count: response.subIds1.length,
+      subIds2Count: response.subIds2.length,
+      subIds3Count: response.subIds3.length,
+      subIds4Count: response.subIds4.length,
+      subIds5Count: response.subIds5.length
     })
+    console.log('📋 [FILTERS] Sub ID 1 values in response:', response.subIds1)
+    console.log('📋 [FILTERS] Sub ID 2 values in response:', response.subIds2)
     console.log('🎯 [FILTERS] Final campaigns:', JSON.stringify(response.campaigns, null, 2))
     
     return NextResponse.json(response)
