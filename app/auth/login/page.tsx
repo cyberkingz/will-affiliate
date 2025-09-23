@@ -1,7 +1,7 @@
 'use client'
 
-import { Suspense, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,6 +23,29 @@ function LoginPageContent() {
   const message = searchParams.get('message')
   const [isSignUp, setIsSignUp] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const hash = window.location.hash.slice(1)
+    if (!hash) return
+
+    const hashParams = new URLSearchParams(hash)
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+    const type = hashParams.get('type')
+
+    if (accessToken && refreshToken && type === 'invite') {
+      const invitationParams = new URLSearchParams({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        type: 'invite'
+      })
+
+      router.replace(`/auth/accept-invitation?${invitationParams.toString()}`)
+    }
+  }, [router])
 
   async function handleSubmit(formData: FormData) {
     setIsLoading(true)

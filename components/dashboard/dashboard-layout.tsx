@@ -5,7 +5,8 @@ import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar"
 import { 
   LayoutDashboard, 
   Network, 
-  LogOut
+  LogOut,
+  Users
 } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
@@ -34,10 +35,10 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
   if (user.role === 'admin') {
     links.push(
       {
-        label: "Team",
-        href: "/admin/team",
+        label: "User Management",
+        href: "/admin/users",
         icon: (
-          <Network className="text-neutral-300 h-5 w-5 flex-shrink-0" />
+          <Users className="text-neutral-300 h-5 w-5 flex-shrink-0" />
         ),
       }
     )
