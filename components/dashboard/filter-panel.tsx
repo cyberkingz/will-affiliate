@@ -124,9 +124,9 @@ export function FilterPanel({
   const toggleNetwork = (networkId: string) => {
     const isSelected = filters.networks.includes(networkId)
     if (isSelected) {
-      updateFilters({ networks: filters.networks.filter(id => id !== networkId) })
+      updateFilters({ networks: [] })
     } else {
-      updateFilters({ networks: [...filters.networks, networkId] })
+      updateFilters({ networks: [networkId] })
     }
   }
 

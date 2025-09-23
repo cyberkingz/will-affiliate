@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { AffiliateNetworkAPI, defaultNetworkConfig, AffluentConversionData } from '@/lib/api/affiliate-network'
+import { AffiliateNetworkAPI, AffluentConversionData } from '@/lib/api/affiliate-network'
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
+import { resolveNetworkAccess } from '@/lib/server/network-access'
 
 type ConversionsRequestParams = Parameters<AffiliateNetworkAPI['getConversions']>[0]
 
@@ -76,32 +77,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(cachedData)
     }
 
-    // Get user's network connections
-    const { data: userNetworks, error: networkError } = await supabase
-      .from('network_connections')
-      .select('*')
-      .eq('is_active', true)
+    const networkAccess = await resolveNetworkAccess(
+      supabase,
+      user.id,
+      networks.length > 0 ? networks : undefined
+    )
 
-    console.log('🔍 [REAL-CONVERSIONS] Network connections query result:', {
-      userNetworks,
-      networkError,
-      count: userNetworks?.length || 0
-    })
-
-    if (!userNetworks || userNetworks.length === 0) {
-      console.log('⚠️ [REAL-CONVERSIONS] No active network connections found, using default Affluent config')
-      // Use default Affluent configuration if no network connections
+    if (!networkAccess.success) {
+      console.warn('⚠️ [REAL-CONVERSIONS] Network access denied:', networkAccess)
+      return NextResponse.json({ error: networkAccess.message }, { status: networkAccess.status })
     }
 
-    // Initialize API client - use default config if no network connections
-    const networkConfig = userNetworks && userNetworks.length > 0 ? {
-      ...defaultNetworkConfig,
-      affiliateId: userNetworks[0].affiliate_id || defaultNetworkConfig.affiliateId,
-      apiKey: userNetworks[0].api_key || defaultNetworkConfig.apiKey,
-      baseUrl: defaultNetworkConfig.baseUrl
-    } : defaultNetworkConfig
-    
-    const api = new AffiliateNetworkAPI(networkConfig)
+    const api = new AffiliateNetworkAPI(networkAccess.networkConfig)
 
     // Prepare API parameters
     const startDateISO = startDate.split('T')[0]

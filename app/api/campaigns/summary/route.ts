@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
-import { AffiliateNetworkAPI, defaultNetworkConfig, DailySummaryRow, HourlySummaryData, AffluentRecord } from '@/lib/api/affiliate-network'
+import { AffiliateNetworkAPI, DailySummaryRow, HourlySummaryData, AffluentRecord } from '@/lib/api/affiliate-network'
+import { resolveNetworkAccess } from '@/lib/server/network-access'
 
 type HourlyAggregate = {
   clicks: number
@@ -134,7 +135,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Initialize API client
-    const api = new AffiliateNetworkAPI(defaultNetworkConfig)
+    const networkAccess = await resolveNetworkAccess(supabase, user.id, networks)
+
+    if (!networkAccess.success) {
+      return NextResponse.json({ error: networkAccess.message }, { status: networkAccess.status })
+    }
+
+    const api = new AffiliateNetworkAPI(networkAccess.networkConfig)
 
     // Format dates for API with explicit Eastern Time bounds
     const startDateOnly = startDate.split('T')[0] // Extract YYYY-MM-DD from 2025-09-01

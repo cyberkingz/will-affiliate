@@ -56,7 +56,8 @@ import {
   Users,
   Trash2,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  Plus
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -109,6 +110,13 @@ export function UserManagement() {
     full_name: '',
     role: 'staff' as 'admin' | 'staff'
   })
+  const [isCreateNetworkDialogOpen, setIsCreateNetworkDialogOpen] = useState(false)
+  const [isCreatingNetwork, setIsCreatingNetwork] = useState(false)
+  const [newNetworkData, setNewNetworkData] = useState({
+    name: '',
+    affiliate_id: '',
+    api_key: ''
+  })
 
   const supabase = createClient()
 
@@ -138,16 +146,17 @@ export function UserManagement() {
       let allNetworks = networksData || []
       const affluentExists = allNetworks.some(network => network.network_type === 'affluent')
       
-      if (!affluentExists) {
-        // Add Affluent network as it's currently being used
-        const affluentNetwork = {
-          id: 'affluent-network',
-          name: 'Affluent Network',
-          network_type: 'affluent',
-          is_active: true
-        }
-        allNetworks = [affluentNetwork, ...allNetworks]
-      }
+      // Note: Temporarily disabled hardcoded network to avoid UUID conflicts
+      // Network connections should be properly set up in the database
+      // if (!affluentExists) {
+      //   const affluentNetwork = {
+      //     id: 'affluent-network',
+      //     name: 'Affluent Network', 
+      //     network_type: 'affluent',
+      //     is_active: true
+      //   }
+      //   allNetworks = [affluentNetwork, ...allNetworks]
+      // }
       
       setNetworks(allNetworks)
 
@@ -211,6 +220,38 @@ export function UserManagement() {
     }
   }
 
+  const createNetwork = async () => {
+    if (!newNetworkData.name || !newNetworkData.api_key) {
+      toast.error('Network name and API key are required')
+      return
+    }
+
+    setIsCreatingNetwork(true)
+    try {
+      const { error } = await supabase
+        .from('network_connections')
+        .insert({
+          name: newNetworkData.name,
+          network_type: 'custom',
+          affiliate_id: newNetworkData.affiliate_id || null,
+          api_key: newNetworkData.api_key,
+          is_active: true
+        })
+
+      if (error) throw error
+
+      toast.success('Network created successfully!')
+      setIsCreateNetworkDialogOpen(false)
+      setNewNetworkData({ name: '', affiliate_id: '', api_key: '' })
+      loadData()
+    } catch (error: any) {
+      console.error('Error creating network:', error)
+      toast.error(error.message || 'Failed to create network')
+    } finally {
+      setIsCreatingNetwork(false)
+    }
+  }
+
   const updateUserRole = async (userId: string, newRole: 'admin' | 'staff') => {
     try {
       const { error } = await supabase
@@ -260,6 +301,12 @@ export function UserManagement() {
 
   const updateUserNetworkAccess = async (userId: string, networkIds: string[]) => {
     try {
+      const { data: { user: currentAdmin }, error: currentUserError } = await supabase.auth.getUser()
+
+      if (currentUserError) {
+        throw currentUserError
+      }
+
       // First, remove all existing access
       await supabase
         .from('user_network_access')
@@ -268,11 +315,18 @@ export function UserManagement() {
 
       // Then add new access
       if (networkIds.length > 0) {
-        const accessRecords = networkIds.map(networkId => ({
-          user_id: userId,
-          network_connection_id: networkId,
-          granted_by: 'admin' // You might want to get the current admin's ID
-        }))
+        const accessRecords = networkIds.map(networkId => {
+          const record: { user_id: string; network_connection_id: string; granted_by?: string } = {
+            user_id: userId,
+            network_connection_id: networkId
+          }
+
+          if (currentAdmin?.id) {
+            record.granted_by = currentAdmin.id
+          }
+
+          return record
+        })
 
         const { error } = await supabase
           .from('user_network_access')
@@ -461,9 +515,18 @@ export function UserManagement() {
 
       {/* Network Connections Section */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Network className="h-5 w-5 text-neutral-400" />
-          <h3 className="text-lg font-semibold text-white">Network Connections</h3>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Network className="h-5 w-5 text-neutral-400" />
+            <h3 className="text-lg font-semibold text-white">Network Connections</h3>
+          </div>
+          <Button 
+            onClick={() => setIsCreateNetworkDialogOpen(true)}
+            className="bg-white text-black hover:bg-gray-100"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Network
+          </Button>
         </div>
         
         <div className="grid grid-cols-2 gap-4">
@@ -699,6 +762,76 @@ export function UserManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Network Dialog */}
+      <Dialog open={isCreateNetworkDialogOpen} onOpenChange={setIsCreateNetworkDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Network</DialogTitle>
+            <DialogDescription>
+              Connect a new affiliate network to track campaigns and manage performance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="network_name">Network Name</Label>
+              <Input
+                id="network_name"
+                value={newNetworkData.name}
+                onChange={(e) => setNewNetworkData({ ...newNetworkData, name: e.target.value })}
+                placeholder="e.g., Affluent Network"
+                className="bg-neutral-800 border-neutral-700 text-white"
+              />
+            </div>
+
+
+            <div className="grid gap-2">
+              <Label htmlFor="affiliate_id">Affiliate ID (Optional)</Label>
+              <Input
+                id="affiliate_id"
+                value={newNetworkData.affiliate_id}
+                onChange={(e) => setNewNetworkData({ ...newNetworkData, affiliate_id: e.target.value })}
+                placeholder="Your affiliate ID"
+                className="bg-neutral-800 border-neutral-700 text-white"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="api_key">API Key</Label>
+              <Input
+                id="api_key"
+                type="password"
+                value={newNetworkData.api_key}
+                onChange={(e) => setNewNetworkData({ ...newNetworkData, api_key: e.target.value })}
+                placeholder="Your network API key"
+                className="bg-neutral-800 border-neutral-700 text-white"
+              />
+            </div>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-700">
+                💡 The API key will be encrypted and stored securely. It's used to fetch campaign data and performance metrics.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCreateNetworkDialogOpen(false)} 
+              disabled={isCreatingNetwork}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={createNetwork} 
+              disabled={isCreatingNetwork}
+              className="bg-white text-black hover:bg-gray-100"
+            >
+              {isCreatingNetwork ? 'Creating...' : 'Add Network'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

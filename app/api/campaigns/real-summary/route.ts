@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { AffiliateNetworkAPI, defaultNetworkConfig, HourlySummaryData } from '@/lib/api/affiliate-network'
+import { AffiliateNetworkAPI, HourlySummaryData } from '@/lib/api/affiliate-network'
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
+import { resolveNetworkAccess } from '@/lib/server/network-access'
 
 type TrendRow = {
   hour: string
@@ -89,36 +90,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(cachedData)
     }
 
-    // Get user's network connections
-    const { data: userNetworks } = await supabase
-      .from('network_connections')
-      .select('*')
-      .eq('is_active', true)
+    const networkAccess = await resolveNetworkAccess(supabase, user.id, networks.length > 0 ? networks : undefined)
 
-    if (!userNetworks || userNetworks.length === 0) {
-      return NextResponse.json({
-        kpis: {
-          revenue: { value: 0, change: 0, period: '30d' },
-          clicks: { value: 0, change: 0 },
-          conversions: { value: 0, change: 0 },
-          cvr: { value: 0, change: 0 },
-          epc: { value: 0, change: 0 },
-          roas: { value: 0, change: 0 },
-          peakHour: { value: '--', clicks: 0 }
-        },
-        trends: []
-      })
+    if (!networkAccess.success) {
+      return NextResponse.json({ error: networkAccess.message }, { status: networkAccess.status })
     }
 
-    // Initialize API client (using first network for now)
-    const networkConfig = {
-      ...defaultNetworkConfig,
-      affiliateId: userNetworks[0].affiliate_id || defaultNetworkConfig.affiliateId,
-      apiKey: userNetworks[0].api_key || defaultNetworkConfig.apiKey,
-      baseUrl: defaultNetworkConfig.baseUrl
-    }
-    
-    const api = new AffiliateNetworkAPI(networkConfig)
+    const api = new AffiliateNetworkAPI(networkAccess.networkConfig)
 
     // Fetch data from affiliate network
     const [campaignSummaryResponse, hourlySummaryResponse] = await Promise.all([

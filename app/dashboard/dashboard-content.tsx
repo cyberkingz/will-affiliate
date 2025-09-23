@@ -8,6 +8,7 @@ import { TrendsChart, TrendData } from '@/components/dashboard/trends-chart'
 import { ClicksTable, ClickData } from '@/components/dashboard/clicks-table'
 import { ConversionsTable, ConversionData } from '@/components/dashboard/conversions-table'
 import { TableFilters, TableFiltersState } from '@/components/dashboard/table-filters'
+import { NetworkSelector } from '@/components/dashboard/network-selector'
 import { Database } from '@/types/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -15,6 +16,24 @@ type User = Database['public']['Tables']['users']['Row']
 interface DashboardContentProps {
   user: User
 }
+
+type FiltersApiResponse = {
+  networks: Array<{ id: string; name: string; status?: string }>
+  campaigns: Array<{ id: string; name: string }>
+  subIds: string[]
+  subIds1?: string[]
+  subIds2?: string[]
+}
+
+const createDefaultKpiData = (): KPIData => ({
+  revenue: { value: 0, change: 0, period: '30d' },
+  clicks: { value: 0, change: 0 },
+  conversions: { value: 0, change: 0 },
+  cvr: { value: 0, change: 0 },
+  epc: { value: 0, change: 0 },
+  roas: { value: 0, change: 0 },
+  peakHour: { value: '--', clicks: 0 }
+})
 
 // Helper function to format date as YYYY-MM-DD in local timezone
 const formatDateForAPI = (date: Date): string => {
@@ -40,7 +59,7 @@ const getDefaultFilters = (): FilterState => {
       from: sevenDaysAgo, // Last 7 days instead of full month
       to: now
     },
-    networks: ['affluent'], // Default to Affluent network
+    networks: [],
     offers: [], // Empty means ALL offers
     subIds: [] // Empty means ALL sub IDs
   }
@@ -49,15 +68,7 @@ const getDefaultFilters = (): FilterState => {
 export function DashboardContent({ user }: DashboardContentProps) {
   const [filters, setFilters] = useState<FilterState>(getDefaultFilters)
 
-  const [kpiData, setKpiData] = useState<KPIData>({
-    revenue: { value: 0, change: 0, period: '30d' },
-    clicks: { value: 0, change: 0 },
-    conversions: { value: 0, change: 0 },
-    cvr: { value: 0, change: 0 },
-    epc: { value: 0, change: 0 },
-    roas: { value: 0, change: 0 },
-    peakHour: { value: '--', clicks: 0 }
-  })
+  const [kpiData, setKpiData] = useState<KPIData>(createDefaultKpiData)
 
   const [trendData, setTrendData] = useState<TrendData[]>([])
   const [clicksData, setClicksData] = useState<ClickData[]>([])
@@ -75,45 +86,130 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [availableOfferNames, setAvailableOfferNames] = useState<string[]>([])
   const [availableTableSubIds, setAvailableTableSubIds] = useState<string[]>([])
   const [availableTableSubIds2, setAvailableTableSubIds2] = useState<string[]>([])
+  const selectedNetworks = filters.networks
+
+  useEffect(() => {
+    if (availableNetworks.length === 0) {
+      if (selectedNetworks.length > 0) {
+        setFilters(prev => ({ ...prev, networks: [] }))
+      }
+      return
+    }
+
+    const availableIds = new Set(availableNetworks.map(network => network.id))
+    const validSelections = selectedNetworks.filter(id => availableIds.has(id))
+
+    if (validSelections.length !== selectedNetworks.length) {
+      setFilters(prev => ({ ...prev, networks: validSelections }))
+      return
+    }
+
+    if (validSelections.length > 1) {
+      setFilters(prev => ({ ...prev, networks: [validSelections[0]] }))
+    }
+
+    // Don't auto-select networks - let user choose
+    // if (validSelections.length === 0) {
+    //   setFilters(prev => ({ ...prev, networks: [availableNetworks[0].id] }))
+    // }
+  }, [availableNetworks, selectedNetworks, setFilters])
 
   const fetchData = useCallback(async () => {
     setIsLoading(true)
-    
-    const formattedStartDate = formatDateForAPI(filters.dateRange.from)
-    const formattedEndDate = formatDateForAPI(filters.dateRange.to)
-    
-    console.log('📅 [FRONTEND] Date debugging:', {
-      originalFrom: filters.dateRange.from.toString(),
-      originalTo: filters.dateRange.to.toString(),
-      formattedStartDate,
-      formattedEndDate,
-      currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    })
-    
+
     try {
-      // Prepare common request body
+      const filtersResponse = await fetch('/api/campaigns/filters')
+
+      let filtersData: FiltersApiResponse | null = null
+
+      if (filtersResponse.ok) {
+        filtersData = await filtersResponse.json() as FiltersApiResponse
+        console.log('📋 [FRONTEND] Filters data received:', filtersData)
+        console.log('🎯 [FRONTEND] Available offers:', filtersData.campaigns)
+
+        setAvailableNetworks(filtersData.networks)
+        setAvailableOffers(filtersData.campaigns)
+        setAvailableSubIds(filtersData.subIds)
+
+        const offerNames = filtersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
+        setAvailableOfferNames([...new Set(offerNames)])
+
+        const subIds1 = filtersData.subIds1 || []
+        const subIds2 = filtersData.subIds2 || []
+        setAvailableTableSubIds(subIds1)
+        setAvailableTableSubIds2(subIds2)
+      } else {
+        console.error('❌ [FRONTEND] Filters API failed:', filtersResponse.status)
+        setAvailableNetworks([])
+        setAvailableOffers([])
+        setAvailableSubIds([])
+        setAvailableOfferNames([])
+        setAvailableTableSubIds([])
+        setAvailableTableSubIds2([])
+      }
+
+      let effectiveNetworks = filters.networks
+
+      if (Array.isArray(filtersData?.networks)) {
+        const accessibleNetworkIds = new Set(
+          filtersData.networks.map((network: { id: string }) => network.id)
+        )
+
+        const filteredNetworks = filters.networks
+          .filter(id => accessibleNetworkIds.has(id))
+          .slice(0, 1)
+
+        if (filteredNetworks.length !== filters.networks.length) {
+          setFilters(prev => ({ ...prev, networks: filteredNetworks }))
+        }
+
+        effectiveNetworks = filteredNetworks
+      }
+
+      if (effectiveNetworks.length > 1) {
+        effectiveNetworks = effectiveNetworks.slice(0, 1)
+        setFilters(prev => ({ ...prev, networks: effectiveNetworks }))
+      }
+
+      if (!effectiveNetworks || effectiveNetworks.length === 0) {
+        setKpiData(createDefaultKpiData())
+        setTrendData([])
+        setClicksData([])
+        setConversionsData([])
+        return
+      }
+
+      const formattedStartDate = formatDateForAPI(filters.dateRange.from)
+      const formattedEndDate = formatDateForAPI(filters.dateRange.to)
+
+      console.log('📅 [FRONTEND] Date debugging:', {
+        originalFrom: filters.dateRange.from.toString(),
+        originalTo: filters.dateRange.to.toString(),
+        formattedStartDate,
+        formattedEndDate,
+        currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      })
+
       const requestBody = {
         startDate: formattedStartDate,
         endDate: formattedEndDate,
-        networks: filters.networks,
+        networks: effectiveNetworks,
         offers: filters.offers,
         subIds: filters.subIds
       }
 
       const tableRequestBody = {
         ...requestBody,
-        campaigns: filters.offers, // Note: API expects 'campaigns' not 'offers'
+        campaigns: filters.offers,
         tableFilters: tableFilters,
         page: 1,
         limit: 50
       }
 
-      // Run all API calls in parallel to avoid race conditions
       const [
         summaryResponse,
-        clicksResponse, 
-        conversionsResponse,
-        filtersResponse
+        clicksResponse,
+        conversionsResponse
       ] = await Promise.allSettled([
         fetch('/api/campaigns/summary', {
           method: 'POST',
@@ -129,61 +225,47 @@ export function DashboardContent({ user }: DashboardContentProps) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(tableRequestBody)
-        }),
-        fetch('/api/campaigns/filters')
+        })
       ])
 
-      // Handle summary response
-      if (summaryResponse.status === 'fulfilled' && summaryResponse.value.ok) {
-        const summaryData = await summaryResponse.value.json()
-        setKpiData(summaryData.kpis)
-        setTrendData(summaryData.trends)
+      if (summaryResponse.status === 'fulfilled') {
+        if (summaryResponse.value.ok) {
+          const summaryData = await summaryResponse.value.json()
+          setKpiData(summaryData.kpis)
+          setTrendData(summaryData.trends)
+        } else {
+          console.error('❌ [DASHBOARD] Summary API failed:', summaryResponse.value.status)
+        }
       } else {
-        console.error('❌ [DASHBOARD] Summary API failed:', summaryResponse)
+        console.error('❌ [DASHBOARD] Summary API promise rejected:', summaryResponse.reason)
       }
 
-      // Handle clicks response
-      if (clicksResponse.status === 'fulfilled' && clicksResponse.value.ok) {
-        const clicksResponseData = await clicksResponse.value.json()
-        console.log('📊 [DASHBOARD] Clicks response:', clicksResponseData)
-        setClicksData(clicksResponseData.clicks || [])
+      if (clicksResponse.status === 'fulfilled') {
+        if (clicksResponse.value.ok) {
+          const clicksResponseData = await clicksResponse.value.json()
+          console.log('📊 [DASHBOARD] Clicks response:', clicksResponseData)
+          setClicksData(clicksResponseData.clicks || [])
+        } else {
+          console.error('❌ [DASHBOARD] Clicks API failed:', clicksResponse.value.status)
+          setClicksData([])
+        }
       } else {
-        console.error('❌ [DASHBOARD] Clicks API failed:', clicksResponse)
+        console.error('❌ [DASHBOARD] Clicks API promise rejected:', clicksResponse.reason)
         setClicksData([])
       }
 
-      // Handle conversions response
-      if (conversionsResponse.status === 'fulfilled' && conversionsResponse.value.ok) {
-        const conversionsResponseData = await conversionsResponse.value.json()
-        console.log('📊 [DASHBOARD] Conversions response:', conversionsResponseData)
-        setConversionsData(conversionsResponseData.conversions || [])
+      if (conversionsResponse.status === 'fulfilled') {
+        if (conversionsResponse.value.ok) {
+          const conversionsResponseData = await conversionsResponse.value.json()
+          console.log('📊 [DASHBOARD] Conversions response:', conversionsResponseData)
+          setConversionsData(conversionsResponseData.conversions || [])
+        } else {
+          console.error('❌ [DASHBOARD] Conversions API failed:', conversionsResponse.value.status)
+          setConversionsData([])
+        }
       } else {
-        console.error('❌ [DASHBOARD] Conversions API failed:', conversionsResponse)
+        console.error('❌ [DASHBOARD] Conversions API promise rejected:', conversionsResponse.reason)
         setConversionsData([])
-      }
-
-      // Handle filters response
-      if (filtersResponse.status === 'fulfilled' && filtersResponse.value.ok) {
-        const filtersData = await filtersResponse.value.json()
-        console.log('📋 [FRONTEND] Filters data received:', filtersData)
-        console.log('🎯 [FRONTEND] Available offers:', filtersData.campaigns)
-        
-        setAvailableNetworks(filtersData.networks)
-        setAvailableOffers(filtersData.campaigns)
-        setAvailableSubIds(filtersData.subIds)
-        
-        // Set table filter options from real data
-        // Extract unique offer names from campaigns
-        const offerNames = filtersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
-        setAvailableOfferNames([...new Set(offerNames)])
-        
-        // Use separate sub ID arrays from the API for proper filtering
-        const subIds1 = filtersData.subIds1 || []
-        const subIds2 = filtersData.subIds2 || []
-        setAvailableTableSubIds(subIds1)  // Sub ID 1 values only
-        setAvailableTableSubIds2(subIds2) // Sub ID 2 values only (empty in current dataset)
-      } else {
-        console.error('❌ [FRONTEND] Filters API failed:', filtersResponse)
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -200,57 +282,72 @@ export function DashboardContent({ user }: DashboardContentProps) {
     <DashboardLayout user={user}>
       <main className="container mx-auto px-6 py-8">
         <div className="space-y-6">
-          {/* Filter Panel */}
-          <FilterPanel
-            filters={filters}
-            onFiltersChange={setFilters}
-            availableNetworks={availableNetworks}
-            availableOffers={availableOffers}
-            availableSubIds={availableSubIds}
-            isLoading={isLoading}
-          />
-
-          {/* KPI Cards */}
-          <KPICards data={kpiData} isLoading={isLoading} />
-
-          {/* Trends Chart */}
-          <TrendsChart 
-            data={trendData} 
-            isLoading={isLoading}
-            dateRange={filters.dateRange}
-            networks={filters.networks}
-          />
-
-          {/* Table Filters */}
-          <TableFilters
-            filters={tableFilters}
-            onFiltersChange={setTableFilters}
-            availableOfferNames={availableOfferNames}
-            availableSubIds={availableTableSubIds}
-            availableSubIds2={availableTableSubIds2}
-          />
-
-          {/* Data Tables */}
-          <div className="grid gap-6 xl:grid-cols-2">
-            <ClicksTable 
-              data={clicksData} 
+          {/* Show filter panel only when networks are selected */}
+          {filters.networks && filters.networks.length > 0 && (
+            <FilterPanel
+              filters={filters}
+              onFiltersChange={setFilters}
+              availableNetworks={availableNetworks}
+              availableOffers={availableOffers}
+              availableSubIds={availableSubIds}
               isLoading={isLoading}
-              totalCount={56289}
-              onExport={() => {
-                // TODO: Implement export functionality
-                console.log('Exporting clicks data...')
+            />
+          )}
+
+          {/* Network Selection or Dashboard Content */}
+          {!filters.networks || filters.networks.length === 0 ? (
+            <NetworkSelector
+              availableNetworks={availableNetworks}
+              onNetworksSelected={(networkIds) => {
+                const firstNetwork = networkIds[0]
+                setFilters(prev => ({ ...prev, networks: firstNetwork ? [firstNetwork] : [] }))
               }}
             />
-            <ConversionsTable 
-              data={conversionsData} 
-              isLoading={isLoading}
-              totalCount={15949}
-              onExport={() => {
-                // TODO: Implement export functionality
-                console.log('Exporting conversions data...')
-              }}
-            />
-          </div>
+          ) : (
+            <>
+              {/* KPI Cards */}
+              <KPICards data={kpiData} isLoading={isLoading} />
+
+              {/* Trends Chart */}
+              <TrendsChart 
+                data={trendData} 
+                isLoading={isLoading}
+                dateRange={filters.dateRange}
+                networks={filters.networks}
+              />
+
+              {/* Table Filters */}
+              <TableFilters
+                filters={tableFilters}
+                onFiltersChange={setTableFilters}
+                availableOfferNames={availableOfferNames}
+                availableSubIds={availableTableSubIds}
+                availableSubIds2={availableTableSubIds2}
+              />
+
+              {/* Data Tables */}
+              <div className="grid gap-6 xl:grid-cols-2">
+                <ClicksTable 
+                  data={clicksData} 
+                  isLoading={isLoading}
+                  totalCount={56289}
+                  onExport={() => {
+                    // TODO: Implement export functionality
+                    console.log('Exporting clicks data...')
+                  }}
+                />
+                <ConversionsTable 
+                  data={conversionsData} 
+                  isLoading={isLoading}
+                  totalCount={15949}
+                  onExport={() => {
+                    // TODO: Implement export functionality
+                    console.log('Exporting conversions data...')
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
       </main>
     </DashboardLayout>
