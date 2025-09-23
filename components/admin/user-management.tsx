@@ -344,6 +344,9 @@ export function UserManagement() {
   }
 
   const openNetworkDialog = (user: User) => {
+    if (user.role === 'admin') {
+      return
+    }
     setSelectedUser(user)
     setIsNetworkDialogOpen(true)
   }
@@ -681,11 +684,15 @@ export function UserManagement() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-neutral-800 border-neutral-700">
-                            <DropdownMenuItem onClick={() => openNetworkDialog(user)} className="text-neutral-300 hover:text-white">
-                              <Network className="mr-2 h-4 w-4" />
-                              Manage Network Access
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="bg-neutral-700" />
+                            {user.role !== 'admin' && (
+                              <>
+                                <DropdownMenuItem onClick={() => openNetworkDialog(user)} className="text-neutral-300 hover:text-white">
+                                  <Network className="mr-2 h-4 w-4" />
+                                  Manage Network Access
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="bg-neutral-700" />
+                              </>
+                            )}
                             {user.role !== 'admin' && (
                               <DropdownMenuItem onClick={() => updateUserRole(user.id, 'admin')} className="text-neutral-300 hover:text-white">
                                 <Shield className="mr-2 h-4 w-4" />

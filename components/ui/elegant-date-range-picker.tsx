@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Calendar, ChevronDown, Clock, Settings2, TrendingUp, Zap, BarChart3 } from 'lucide-react'
+import { Calendar, ChevronDown, TrendingUp, Zap, BarChart3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Badge } from '@/components/ui/badge'
