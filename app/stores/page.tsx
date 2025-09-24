@@ -57,6 +57,11 @@ export default function ShopifyStoresPage() {
 
         setUser(userData)
         
+        // Debug: Log user data to verify admin role
+        console.log('🔍 [DEBUG] Current user data:', userData)
+        console.log('🔍 [DEBUG] User role:', userData?.role)
+        console.log('🔍 [DEBUG] Is admin?', userData?.role === 'admin')
+        
         // Fetch stores
         await fetchStores()
       } catch (error) {

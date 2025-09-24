@@ -30,17 +30,43 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
+    // Check if user is admin to determine query scope
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (userError) {
+      console.error('Error fetching user role:', userError)
+      return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 })
+    }
+
+    const isAdmin = userData?.role === 'admin'
+
     let query = supabase
       .from('shopify_stores')
       .select('*')
-      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+
+    // Only filter by user_id if not admin
+    if (!isAdmin) {
+      query = query.eq('user_id', user.id)
+    }
 
     if (status && status !== 'all') {
       query = query.eq('status', status)
     }
 
     const { data: stores, error } = await query
+
+    // Debug: Log what we're getting from the database
+    console.log('🔍 [API DEBUG] User ID:', user.id)
+    console.log('🔍 [API DEBUG] Is Admin:', isAdmin)
+    console.log('🔍 [API DEBUG] User Role:', userData?.role)
+    console.log('🔍 [API DEBUG] Status filter:', status)
+    console.log('🔍 [API DEBUG] Raw stores from DB:', stores)
+    console.log('🔍 [API DEBUG] Error:', error)
 
     if (error) {
       console.error('Error fetching stores:', error)
