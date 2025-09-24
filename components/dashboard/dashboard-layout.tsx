@@ -5,7 +5,8 @@ import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar"
 import {
   LayoutDashboard,
   LogOut,
-  Users
+  Users,
+  Store
 } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
@@ -26,6 +27,13 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
       href: "/dashboard",
       icon: (
         <LayoutDashboard className="text-neutral-300 h-5 w-5 flex-shrink-0" />
+      ),
+    },
+    {
+      label: "Shopify Stores",
+      href: "/stores",
+      icon: (
+        <Store className="text-neutral-300 h-5 w-5 flex-shrink-0" />
       ),
     },
   ]

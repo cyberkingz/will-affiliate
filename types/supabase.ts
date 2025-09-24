@@ -440,6 +440,49 @@ export interface Database {
           }
         ]
       }
+      shopify_stores: {
+        Row: {
+          id: string
+          user_id: string
+          store_name: string
+          store_url: string
+          shopify_email: string
+          shopify_password: string
+          status: 'active' | 'inactive'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          store_name: string
+          store_url: string
+          shopify_email: string
+          shopify_password: string
+          status?: 'active' | 'inactive'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          store_name?: string
+          store_url?: string
+          shopify_email?: string
+          shopify_password?: string
+          status?: 'active' | 'inactive'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_stores_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       campaign_performance_view: {
@@ -512,6 +555,7 @@ export interface Database {
 export type UserRole = Database['public']['Tables']['users']['Row']['role']
 export type SyncStatus = Database['public']['Tables']['sync_logs']['Row']['status']
 export type NetworkSyncStatus = Database['public']['Tables']['network_connections']['Row']['last_sync_status']
+export type StoreStatus = Database['public']['Tables']['shopify_stores']['Row']['status']
 
 // Campaign metrics type for frontend use
 export type CampaignMetrics = {
@@ -561,4 +605,33 @@ export type CampaignDataWithMetrics = Database['public']['Tables']['campaigns_da
   roas: number
   profit: number
   network_name?: string
+}
+
+// Shopify store utility types
+export type ShopifyStore = Database['public']['Tables']['shopify_stores']['Row']
+export type ShopifyStoreInsert = Database['public']['Tables']['shopify_stores']['Insert']
+export type ShopifyStoreUpdate = Database['public']['Tables']['shopify_stores']['Update']
+
+// Shopify store with user info
+export type ShopifyStoreWithUser = ShopifyStore & {
+  user?: {
+    email: string
+    full_name: string | null
+  }
+}
+
+// Form data for creating/updating Shopify stores
+export type ShopifyStoreFormData = {
+  store_name: string
+  store_url: string
+  shopify_email: string
+  shopify_password: string
+  status?: StoreStatus
+}
+
+// Validation schema for Shopify store URLs
+export type ShopifyUrlValidation = {
+  is_valid: boolean
+  error_message?: string
+  normalized_url?: string
 }
