@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { differenceInDays, isToday, isYesterday, startOfDay, endOfDay } from 'date-fns'
-import { dateTemplates } from '@/lib/utils/date-templates'
+import { getDateTemplates } from '@/lib/utils/date-templates'
 
 interface DateRangeState {
   from: Date
@@ -26,6 +26,7 @@ export function useDateRangeOptimization(dateRange: DateRangeState) {
     cacheKey: '',
     isRealtimeCapable: false
   })
+  const templates = useMemo(() => getDateTemplates(), [])
 
   // Memoized calculations for performance
   const calculations = useMemo(() => {
@@ -33,7 +34,7 @@ export function useDateRangeOptimization(dateRange: DateRangeState) {
     const isRealtimeCapable = isToday(dateRange.to) || isYesterday(dateRange.to)
     
     // Check if this matches a standard template
-    const matchingTemplate = dateTemplates.find(template => {
+    const matchingTemplate = templates.find(template => {
       const templateRange = template.getValue()
       const isSameFrom = Math.abs(templateRange.from.getTime() - dateRange.from.getTime()) < 1000
       const isSameTo = Math.abs(templateRange.to.getTime() - dateRange.to.getTime()) < 1000
@@ -68,7 +69,7 @@ export function useDateRangeOptimization(dateRange: DateRangeState) {
       label,
       templateId: matchingTemplate?.id
     }
-  }, [dateRange])
+  }, [dateRange, templates])
 
   // Update optimization state when calculations change
   useEffect(() => {
@@ -103,7 +104,7 @@ export function useDateRangeOptimization(dateRange: DateRangeState) {
     const { dayCount, templateId } = calculations
     const suggestions: Array<{ label: string; dateRange: DateRangeState; templateId?: string }> = []
 
-    if (templateId === 'last7days') {
+    if (templateId === 'last-7-days') {
       // Previous 7 days
       const prevWeekEnd = new Date(dateRange.from)
       prevWeekEnd.setDate(prevWeekEnd.getDate() - 1)
@@ -116,7 +117,7 @@ export function useDateRangeOptimization(dateRange: DateRangeState) {
       })
     }
 
-    if (templateId === 'last30days') {
+    if (templateId === 'last-30-days') {
       // Previous 30 days
       const prevMonthEnd = new Date(dateRange.from)
       prevMonthEnd.setDate(prevMonthEnd.getDate() - 1)

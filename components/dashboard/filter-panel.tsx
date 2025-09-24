@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useId } from 'react'
+import React, { useState } from 'react'
 import { CalendarIcon, Settings2, X, Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -72,10 +72,6 @@ export function FilterPanel({
   const [loadingOffers, setLoadingOffers] = useState(false)
   
   const templates = getDateTemplates()
-  const dateRangeId = useId()
-  const networkId = useId()
-  const offersId = useId()
-  const subIdsId = useId()
 
   const updateFilters = (updates: Partial<FilterState>) => {
     onFiltersChange({ ...filters, ...updates })
@@ -172,7 +168,10 @@ export function FilterPanel({
     filters.subIds.length
 
   return (
-    <div className="space-y-4">
+    <div
+      className={`space-y-4${isLoading ? ' pointer-events-none opacity-50' : ''}`}
+      aria-busy={isLoading}
+    >
       <div className="flex flex-wrap items-center gap-2">
         {/* Simple Date Range Picker */}
         <Popover>

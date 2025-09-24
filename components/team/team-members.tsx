@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTeam } from '@/contexts/team-context'
 import { TeamMember, TeamInvitation, TeamRole } from '@/types/team'
 import { InviteTeamMember } from './invite-team-member'
@@ -54,6 +54,18 @@ interface TeamMembersProps {
   teamId: string
 }
 
+type MembershipRecord = {
+  user: {
+    id: string
+    email: string
+    full_name: string | null
+    avatar_url?: string | null
+  }
+  role?: TeamRole
+  joined_at?: string
+  is_active?: boolean
+}
+
 export function TeamMembers({ teamId }: TeamMembersProps) {
   const { currentMembership, hasPermission } = useTeam()
   const [members, setMembers] = useState<TeamMember[]>([])
@@ -63,28 +75,29 @@ export function TeamMembers({ teamId }: TeamMembersProps) {
   const [invitationToCancel, setInvitationToCancel] = useState<TeamInvitation | null>(null)
   const supabase = createClient()
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     try {
       // Load team members
       const { data: membersData, error: membersError } = await supabase
         .from('team_memberships')
         .select(`
           *,
-          user:users(id, email, full_name, avatar_url)
+          user:users(id, email, full_name)
         `)
         .eq('team_id', teamId)
         .eq('is_active', true)
+        .returns<MembershipRecord[]>()
 
       if (membersError) throw membersError
 
-      const teamMembers = membersData?.map(m => ({
+      const teamMembers = (membersData ?? []).map((m) => ({
         id: m.user.id,
         email: m.user.email,
-        full_name: m.user.full_name,
-        avatar_url: m.user.avatar_url,
-        role: m.role,
-        joined_at: m.joined_at,
-        is_active: m.is_active
+        full_name: m.user.full_name ?? undefined,
+        avatar_url: m.user.avatar_url ?? undefined,
+        role: m.role ?? 'member',
+        joined_at: m.joined_at ?? new Date().toISOString(),
+        is_active: m.is_active ?? true
       })) || []
 
       setMembers(teamMembers)
@@ -105,11 +118,11 @@ export function TeamMembers({ teamId }: TeamMembersProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [supabase, teamId])
 
   useEffect(() => {
     loadMembers()
-  }, [teamId])
+  }, [loadMembers])
 
   const updateMemberRole = async (memberId: string, newRole: TeamRole) => {
     try {
@@ -384,7 +397,9 @@ export function TeamMembers({ teamId }: TeamMembersProps) {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
-                          {format(new Date(invitation.expires_at), 'MMM d, yyyy')}
+                          {invitation.expires_at
+                            ? format(new Date(invitation.expires_at), 'MMM d, yyyy')
+                            : 'No expiration'}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">

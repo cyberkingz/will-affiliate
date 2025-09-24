@@ -20,13 +20,10 @@ import {
   Plus,
   Settings,
   Users,
-  Building2,
-  CreditCard,
-  LogOut
+  CreditCard
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -88,7 +85,7 @@ export function TeamSwitcher() {
           <Button variant="outline" className="w-[200px] justify-between">
             <div className="flex items-center gap-2 truncate">
               <Avatar className="h-5 w-5">
-                <AvatarImage src={currentTeam?.logo_url} />
+                <AvatarImage src={currentTeam?.logo_url ?? undefined} />
                 <AvatarFallback className="text-xs bg-primary/10 text-primary">
                   {currentTeam?.name?.charAt(0) || 'T'}
                 </AvatarFallback>
@@ -113,7 +110,7 @@ export function TeamSwitcher() {
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
                     <Avatar className="h-5 w-5">
-                      <AvatarImage src={team.logo_url} />
+                      <AvatarImage src={team.logo_url ?? undefined} />
                       <AvatarFallback className="text-xs bg-primary/10 text-primary">
                         {team.name.charAt(0)}
                       </AvatarFallback>

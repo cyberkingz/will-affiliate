@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner'
 
 export default function AcceptInvitationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="text-neutral-300">Processing invitation...</div>
+      </div>
+    }>
+      <AcceptInvitationContent />
+    </Suspense>
+  )
+}
+
+function AcceptInvitationContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
@@ -141,15 +153,11 @@ export default function AcceptInvitationPage() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="text-neutral-300">Processing invitation...</div>
-      </div>
-    )
-  }
-
-  return (
+  return isLoading ? (
+    <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+      <div className="text-neutral-300">Processing invitation...</div>
+    </div>
+  ) : (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-6">
       <Card className="w-full max-w-md bg-neutral-900 border-neutral-800">
         <CardHeader className="text-center">

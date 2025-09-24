@@ -26,6 +26,18 @@ export const getDateTemplates = (): DateTemplate[] => {
       }
     },
     {
+      id: 'last-3-days',
+      label: 'Last 3 Days',
+      description: 'Recent 3 day performance',
+      category: 'quick',
+      icon: '⚡',
+      getValue: () => {
+        const from = new Date(today)
+        from.setDate(today.getDate() - 3)
+        return { from, to: today }
+      }
+    },
+    {
       id: 'last-30-days',
       label: 'Last 30 Days',
       description: 'Previous 30 days of data',
@@ -34,6 +46,18 @@ export const getDateTemplates = (): DateTemplate[] => {
       getValue: () => {
         const from = new Date(today)
         from.setDate(today.getDate() - 30)
+        return { from, to: today }
+      }
+    },
+    {
+      id: 'last-14-days',
+      label: 'Last 14 Days',
+      description: 'Two week performance window',
+      category: 'quick',
+      icon: '📉',
+      getValue: () => {
+        const from = new Date(today)
+        from.setDate(today.getDate() - 14)
         return { from, to: today }
       }
     },

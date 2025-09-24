@@ -303,8 +303,8 @@ export function SmartDatePicker({
       {/* Advanced Date Picker Modal */}
       {showAdvanced && (
         <CompactDateRangeSelector
-          dateRange={dateRange}
-          onDateRangeChange={(range) => {
+          value={dateRange}
+          onChange={(range) => {
             onDateRangeChange(range)
             setShowAdvanced(false)
           }}

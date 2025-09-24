@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -38,16 +37,14 @@ import {
   AlertTriangle,
   Bell,
   CreditCard,
-  Shield,
-  Users,
   Globe
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import type { Json } from '@/types/supabase'
 
 export function TeamSettingsPage() {
   const { currentTeam, currentMembership, updateTeam, hasPermission } = useTeam()
-  const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [teamData, setTeamData] = useState({
     name: '',
@@ -85,8 +82,8 @@ export function TeamSettingsPage() {
         billing_email: currentTeam.billing_email || ''
       })
       
-      if (currentTeam.settings) {
-        setSettings({ ...settings, ...currentTeam.settings })
+      if (currentTeam.settings && typeof currentTeam.settings === 'object') {
+        setSettings(prev => ({ ...prev, ...(currentTeam.settings as Partial<TeamSettingsType>) }))
       }
     }
   }, [currentTeam])
@@ -101,7 +98,7 @@ export function TeamSettingsPage() {
     try {
       await updateTeam(currentTeam.id, {
         ...teamData,
-        settings
+        settings: settings as Json
       })
       toast.success('Team settings updated successfully')
     } catch (error) {

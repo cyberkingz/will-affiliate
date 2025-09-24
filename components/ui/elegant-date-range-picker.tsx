@@ -10,24 +10,33 @@ import { ModernCalendar } from '@/components/ui/modern-calendar'
 import { getDateTemplates, formatDateRange, getDaysInRange, DateTemplate } from '@/lib/utils/date-templates'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
+import type { DateRange as DayPickerRange } from 'react-day-picker'
 
-interface DateRange {
+type PickerDateRange = {
   from: Date
   to: Date
 }
 
 interface ElegantDateRangePickerProps {
-  value: DateRange
-  onChange: (range: DateRange) => void
+  value: PickerDateRange
+  onChange: (range: PickerDateRange) => void
   className?: string
   variant?: 'default' | 'premium' | 'minimal'
+  size?: 'sm' | 'md' | 'lg'
+  compactMode?: boolean
+  showAnimation?: boolean
+  highlightToday?: boolean
 }
 
 export function ElegantDateRangePicker({ 
   value, 
   onChange, 
   className,
-  variant = 'default' 
+  variant = 'default',
+  size = 'md',
+  compactMode = false,
+  showAnimation = true,
+  highlightToday = false
 }: ElegantDateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
@@ -76,13 +85,15 @@ export function ElegantDateRangePicker({
     setShowCalendar(false)
   }
 
-  const handleCalendarSelect = (range: Partial<DateRange> | undefined) => {
-    if (range?.from && range?.to) {
-      onChange({ from: range.from, to: range.to })
-      setSelectedTemplate(null)
-      setIsOpen(false)
-      setShowCalendar(false)
+  const handleCalendarSelect = (selection: DayPickerRange | undefined) => {
+    if (!selection?.from || !selection?.to) {
+      return
     }
+
+    onChange({ from: selection.from, to: selection.to })
+    setSelectedTemplate(null)
+    setIsOpen(false)
+    setShowCalendar(false)
   }
 
   const displayText = selectedTemplate 
@@ -104,6 +115,22 @@ export function ElegantDateRangePicker({
     minimal: 'bg-background border-border hover:bg-accent/50'
   }
 
+  type PickerSize = 'sm' | 'md' | 'lg'
+
+  const buttonSizeClasses: Record<PickerSize, string> = {
+    sm: 'h-9 text-sm',
+    md: 'h-10',
+    lg: 'h-11 text-base'
+  }
+
+  const animationProps = showAnimation
+    ? { whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 } }
+    : {}
+
+  const highlightClass = highlightToday && status.type === 'live'
+    ? 'ring-1 ring-emerald-500/40'
+    : ''
+
   const quickTemplates = templates.filter(t => t.category === 'quick')
   const businessTemplates = templates.filter(t => t.category === 'business')
   const comparisonTemplates = templates.filter(t => t.category === 'comparison')
@@ -112,14 +139,15 @@ export function ElegantDateRangePicker({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <motion.div
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+          {...animationProps}
         >
           <Button
             variant="outline"
             className={cn(
-              "h-10 justify-between text-neutral-200 border-neutral-700 transition-all duration-200",
+              'justify-between text-neutral-200 border-neutral-700 transition-all duration-200',
+              buttonSizeClasses[size],
               variants[variant],
+              highlightClass,
               className
             )}
           >
@@ -152,9 +180,11 @@ export function ElegantDateRangePicker({
       <PopoverContent
         className={cn(
           "p-0",
-          variant === 'minimal' 
-            ? 'w-80 bg-background border-border shadow-lg'
-            : 'w-96 border-neutral-700',
+          compactMode
+            ? 'w-72'
+            : variant === 'minimal' 
+              ? 'w-80 bg-background border-border shadow-lg'
+              : 'w-96 border-neutral-700',
           variant === 'premium' 
             ? 'bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 backdrop-blur-xl shadow-2xl' 
             : variant === 'default'
@@ -363,7 +393,6 @@ export function ElegantDateRangePicker({
               </div>
 
               <ModernCalendar
-                mode="range"
                 selected={{ from: value.from, to: value.to }}
                 onSelect={handleCalendarSelect}
                 variant={variant}

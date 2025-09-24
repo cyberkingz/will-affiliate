@@ -131,24 +131,48 @@ export interface Database {
       }
       team_memberships: {
         Row: {
+          id: string
           team_id: string
           user_id: string
+          role: 'owner' | 'admin' | 'member' | 'viewer'
+          joined_at: string | null
+          invited_by: string | null
+          permissions: Json | null
           is_active: boolean
           created_at: string
+          updated_at: string
         }
         Insert: {
+          id?: string
           team_id: string
           user_id: string
+          role?: 'owner' | 'admin' | 'member' | 'viewer'
+          joined_at?: string | null
+          invited_by?: string | null
+          permissions?: Json | null
           is_active?: boolean
           created_at?: string
+          updated_at?: string
         }
         Update: {
+          id?: string
           team_id?: string
           user_id?: string
+          role?: 'owner' | 'admin' | 'member' | 'viewer'
+          joined_at?: string | null
+          invited_by?: string | null
+          permissions?: Json | null
           is_active?: boolean
           created_at?: string
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "team_memberships_team_id_fkey"
+            columns: ["team_id"]
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "team_memberships_user_id_fkey"
             columns: ["user_id"]
@@ -156,7 +180,101 @@ export interface Database {
             referencedColumns: ["id"]
           }
         ]
-      }
+      },
+      teams: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          description: string | null
+          avatar_url: string | null
+          settings: Json | null
+          billing_email: string | null
+          subscription_status: string | null
+          subscription_plan: string | null
+          trial_ends_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          description?: string | null
+          avatar_url?: string | null
+          settings?: Json | null
+          billing_email?: string | null
+          subscription_status?: string | null
+          subscription_plan?: string | null
+          trial_ends_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          description?: string | null
+          avatar_url?: string | null
+          settings?: Json | null
+          billing_email?: string | null
+          subscription_status?: string | null
+          subscription_plan?: string | null
+          trial_ends_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      },
+      team_invitations: {
+        Row: {
+          id: string
+          team_id: string
+          email: string
+          role: 'owner' | 'admin' | 'member' | 'viewer'
+          invited_by: string
+          token: string
+          status: 'pending' | 'accepted' | 'declined' | 'expired'
+          expires_at: string | null
+          accepted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          email: string
+          role?: 'owner' | 'admin' | 'member' | 'viewer'
+          invited_by: string
+          token?: string
+          status?: 'pending' | 'accepted' | 'declined' | 'expired'
+          expires_at?: string | null
+          accepted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          email?: string
+          role?: 'owner' | 'admin' | 'member' | 'viewer'
+          invited_by?: string
+          token?: string
+          status?: 'pending' | 'accepted' | 'declined' | 'expired'
+          expires_at?: string | null
+          accepted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_invitations_team_id_fkey"
+            columns: ["team_id"]
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
       campaigns_data: {
         Row: {
           id: string

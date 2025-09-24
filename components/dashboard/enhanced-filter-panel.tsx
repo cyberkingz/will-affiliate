@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useId, useCallback } from 'react'
-import { Settings2, X, Check, ChevronDown, Filter, Sparkles, Network, Target, Hash, Zap, CalendarIcon } from 'lucide-react'
+import { Settings2, X, Check, Filter, Sparkles, Network, Target, Hash, CalendarIcon } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import {
@@ -58,7 +59,15 @@ interface FilterChipProps {
 function FilterChip({ label, onRemove, variant = 'default', className }: FilterChipProps) {
   const [isHovered, setIsHovered] = useState(false)
 
-  const variantStyles = {
+  type FilterVariant = NonNullable<FilterChipProps['variant']>
+  type VariantStyle = {
+    base: string
+    icon: LucideIcon
+    color: string
+    hover?: string
+  }
+
+  const variantStyles: Record<FilterVariant, VariantStyle> = {
     default: {
       base: 'bg-secondary text-secondary-foreground border-secondary',
       icon: Network,
@@ -85,7 +94,7 @@ function FilterChip({ label, onRemove, variant = 'default', className }: FilterC
   }
 
   const style = variantStyles[variant]
-  const Icon = style.icon
+  const { base, hover = '', icon: Icon } = style
 
   return (
     <motion.div
@@ -101,8 +110,8 @@ function FilterChip({ label, onRemove, variant = 'default', className }: FilterC
         className={cn(
           'h-9 text-xs gap-2 pr-1 font-medium transition-all duration-200 group cursor-default',
           'border-2 shadow-sm backdrop-blur-sm',
-          style.base,
-          style.hover,
+          base,
+          hover,
           'hover:shadow-md hover:shadow-black/5',
           className
         )}
@@ -242,7 +251,12 @@ export function EnhancedFilterPanel({
 
   return (
     <motion.div 
-      className={cn("space-y-6", className)}
+      className={cn(
+        "space-y-6",
+        className,
+        isLoading && "pointer-events-none opacity-50"
+      )}
+      aria-busy={isLoading}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
@@ -258,8 +272,8 @@ export function EnhancedFilterPanel({
         >
           {/* Premium Date Range Picker */}
           <ElegantDateRangePicker
-            dateRange={filters.dateRange}
-            onDateRangeChange={(range) => updateFilters({ dateRange: range })}
+            value={filters.dateRange}
+            onChange={(range) => updateFilters({ dateRange: range })}
             size={compactMode ? 'sm' : 'md'}
             variant="minimal"
             compactMode={compactMode}
@@ -380,8 +394,8 @@ export function EnhancedFilterPanel({
                 </div>
                 
                 <ElegantDateRangePicker
-                  dateRange={filters.dateRange}
-                  onDateRangeChange={(range) => updateFilters({ dateRange: range })}
+                  value={filters.dateRange}
+                  onChange={(range) => updateFilters({ dateRange: range })}
                   size="md"
                   variant="minimal"
                   className="w-full"
@@ -659,5 +673,3 @@ export function EnhancedFilterPanel({
     </motion.div>
   )
 }
-
-export { EnhancedFilterPanel }

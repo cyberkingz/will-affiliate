@@ -2,9 +2,8 @@
 
 import React, { useState } from "react"
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar"
-import { 
-  LayoutDashboard, 
-  Network, 
+import {
+  LayoutDashboard,
   LogOut,
   Users
 } from "lucide-react"

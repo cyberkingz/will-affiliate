@@ -4,12 +4,12 @@ import React from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
+import type { Variants } from 'framer-motion'
 import type { DateRange } from 'react-day-picker'
 
 interface ModernCalendarProps {
-  mode?: 'single' | 'range'
-  selected?: Date | DateRange | undefined
-  onSelect?: (date: Date | DateRange | undefined) => void
+  selected?: DateRange | undefined
+  onSelect?: (date: DateRange | undefined) => void
   className?: string
   variant?: 'default' | 'premium' | 'minimal'
   numberOfMonths?: number
@@ -18,7 +18,6 @@ interface ModernCalendarProps {
 }
 
 export function ModernCalendar({
-  mode = 'range',
   selected,
   onSelect,
   className,
@@ -33,23 +32,18 @@ export function ModernCalendar({
     minimal: 'bg-neutral-950 border-neutral-800'
   }
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0, scale: 0.95, y: 10 },
     visible: { 
       opacity: 1, 
       scale: 1, 
       y: 0,
       transition: {
-        type: "spring",
+        type: 'spring',
         duration: 0.3,
         staggerChildren: 0.02
       }
     }
-  }
-
-  const dayVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: { opacity: 1, scale: 1 }
   }
 
   return (
@@ -80,7 +74,7 @@ export function ModernCalendar({
 
       {/* Calendar */}
       <Calendar
-        mode={mode}
+        mode="range"
         selected={selected}
         onSelect={onSelect}
         numberOfMonths={numberOfMonths}

@@ -1,15 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -47,7 +39,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   UserPlus,
@@ -60,15 +52,15 @@ import {
   Plus
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
 
 interface User {
   id: string
   email: string
-  full_name?: string
+  full_name: string | null
   role: 'admin' | 'staff'
   created_at: string
-  last_sign_in_at?: string
+  last_sign_in_at?: string | null
+  timezone?: string | null
 }
 
 interface NetworkConnection {
@@ -82,7 +74,7 @@ interface UserNetworkAccess {
   user_id: string
   network_connection_id: string
   granted_at: string
-  granted_by: string
+  granted_by: string | null
 }
 
 interface NetworkAccessDialogProps {
@@ -120,11 +112,7 @@ export function UserManagement() {
 
   const supabase = createClient()
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       // Load users
       const { data: usersData, error: usersError } = await supabase
@@ -168,7 +156,7 @@ export function UserManagement() {
         if (!accessError) {
           setUserNetworkAccess(accessData || [])
         }
-      } catch (error) {
+      } catch {
         // Table might not exist yet, that's okay
         console.log('User network access table not found, will create when needed')
       }
@@ -178,7 +166,11 @@ export function UserManagement() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const createUser = async () => {
     if (!newUserData.email) {
@@ -262,7 +254,7 @@ export function UserManagement() {
 
       if (error) throw error
 
-      setUsers(prev => prev.map(u => 
+      setUsers(prev => prev.map(u =>
         u.id === userId ? { ...u, role: newRole } : u
       ))
       toast.success('User role updated')
@@ -379,7 +371,7 @@ export function UserManagement() {
 
   const adminUsers = users.filter(u => u.role === 'admin')
   const managerUsers = users.filter(u => u.role === 'staff') // Staff users are "managers"
-  const activeUsers = users.filter(u => true) // All users are considered active for now
+  const activeUsers = users
 
   return (
     <div className="space-y-6 p-6">

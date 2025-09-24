@@ -67,7 +67,7 @@ export function InviteTeamMember({ teamId, onInvited, trigger }: InviteTeamMembe
     setIsInviting(true)
     try {
       // Call the edge function to send invitation
-      const { data, error } = await supabase.functions.invoke('team-invite', {
+      const { error } = await supabase.functions.invoke('team-invite', {
         body: {
           teamId,
           email,

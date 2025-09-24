@@ -113,8 +113,7 @@ export async function resolveNetworkAccess(
           last_sync_at,
           last_sync_status,
           created_at,
-          updated_at,
-          team_id
+          updated_at
         )
       `)
       .eq('user_id', userId)

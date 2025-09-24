@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { CalendarIcon, Clock, TrendingUp, ChevronRight } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { dateTemplates, getDateRangeLabel, applyDateTemplate } from '@/lib/utils/date-templates'
+import { getDateTemplates, formatDateRange } from '@/lib/utils/date-templates'
 
 interface MobileDateRangeSelectorProps {
   dateRange: { from: Date; to: Date }
@@ -27,14 +27,14 @@ interface MobileDateRangeSelectorProps {
 const MOBILE_QUICK_TEMPLATES = [
   { id: 'today', label: 'Today', icon: Clock, category: 'recent' },
   { id: 'yesterday', label: 'Yesterday', icon: Clock, category: 'recent' },
-  { id: 'last3days', label: 'Last 3 Days', icon: TrendingUp, category: 'recent' },
-  { id: 'last7days', label: 'Last 7 Days', icon: TrendingUp, category: 'weekly' },
-  { id: 'last14days', label: 'Last 14 Days', icon: TrendingUp, category: 'weekly' },
-  { id: 'last30days', label: 'Last 30 Days', icon: TrendingUp, category: 'monthly' },
-  { id: 'thisweek', label: 'This Week', icon: TrendingUp, category: 'weekly' },
-  { id: 'lastweek', label: 'Last Week', icon: TrendingUp, category: 'weekly' },
-  { id: 'thismonth', label: 'This Month', icon: TrendingUp, category: 'monthly' },
-  { id: 'lastmonth', label: 'Last Month', icon: TrendingUp, category: 'monthly' },
+  { id: 'last-3-days', label: 'Last 3 Days', icon: TrendingUp, category: 'recent' },
+  { id: 'last-7-days', label: 'Last 7 Days', icon: TrendingUp, category: 'weekly' },
+  { id: 'last-14-days', label: 'Last 14 Days', icon: TrendingUp, category: 'weekly' },
+  { id: 'last-30-days', label: 'Last 30 Days', icon: TrendingUp, category: 'monthly' },
+  { id: 'this-week', label: 'This Week', icon: TrendingUp, category: 'weekly' },
+  { id: 'last-week', label: 'Last Week', icon: TrendingUp, category: 'weekly' },
+  { id: 'this-month', label: 'This Month', icon: TrendingUp, category: 'monthly' },
+  { id: 'last-month', label: 'Last Month', icon: TrendingUp, category: 'monthly' },
 ]
 
 const TEMPLATE_CATEGORIES = [
@@ -50,6 +50,7 @@ export function MobileDateRangeSelector({
 }: MobileDateRangeSelectorProps) {
   const [open, setOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('recent')
+  const dateTemplates = useMemo(() => getDateTemplates(), [])
 
   const applyTemplate = (templateId: string) => {
     const template = dateTemplates.find(t => t.id === templateId)
@@ -61,7 +62,7 @@ export function MobileDateRangeSelector({
   }
 
   const dayCount = differenceInDays(dateRange.to, dateRange.from) + 1
-  const currentLabel = getDateRangeLabel(dateRange.from, dateRange.to)
+  const currentLabel = formatDateRange(dateRange.from, dateRange.to)
   
   // Check if current range matches any template
   const currentTemplate = dateTemplates.find(template => {

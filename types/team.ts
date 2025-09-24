@@ -1,19 +1,23 @@
+import type { Json } from '@/types/supabase'
+
 export type TeamRole = 'owner' | 'admin' | 'member' | 'viewer'
+export type InvitationStatus = 'pending' | 'accepted' | 'declined' | 'expired'
 
 export interface Team {
   id: string
   name: string
   slug: string
-  description?: string
-  logo_url?: string
-  settings?: TeamSettings
-  subscription_tier?: 'free' | 'starter' | 'professional' | 'enterprise'
-  subscription_status?: 'active' | 'trialing' | 'canceled' | 'past_due'
-  trial_ends_at?: string
-  billing_email?: string
+  description?: string | null
+  logo_url?: string | null
+  settings?: Json | null
+  subscription_tier?: string | null
+  subscription_status?: string | null
+  subscription_plan?: string | null
+  trial_ends_at?: string | null
+  billing_email?: string | null
   created_at: string
   updated_at: string
-  created_by: string
+  created_by?: string
 }
 
 export interface TeamSettings {
@@ -39,11 +43,12 @@ export interface TeamMembership {
   user_id: string
   role: TeamRole
   is_active: boolean
-  joined_at: string
+  joined_at?: string | null
   invited_at?: string
-  invited_by?: string
+  invited_by?: string | null
+  permissions?: Json | null
   updated_at: string
-  team?: Team
+  team?: Team | null
   user?: TeamMember
 }
 
@@ -64,10 +69,13 @@ export interface TeamInvitation {
   email: string
   role: TeamRole
   token: string
-  expires_at: string
+  status?: InvitationStatus
+  invited_by?: string
+  expires_at?: string | null
   created_at: string
-  created_by: string
-  accepted_at?: string
+  updated_at?: string
+  accepted_at?: string | null
+  created_by?: string
   team?: Team
   inviter?: TeamMember
 }

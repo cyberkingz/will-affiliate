@@ -1,8 +1,8 @@
 'use client'
 
 import * as React from "react"
-import { CalendarIcon, TrendingUp, BarChart3, Calendar } from "lucide-react"
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, addDays } from "date-fns"
+import { TrendingUp, BarChart3, Calendar } from "lucide-react"
+import { startOfMonth, subDays, addDays } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -99,28 +99,28 @@ const CAMPAIGN_PHASES = [
     duration: '3-7 days',
     description: 'Initial campaign validation',
     color: 'bg-blue-50 border-blue-200 text-blue-700',
-    patterns: ['today', 'yesterday', 'last3days', 'last7days']
+    patterns: ['today', 'yesterday', 'last-3-days', 'last-7-days']
   },
   {
     phase: 'Optimization',
     duration: '1-2 weeks',
     description: 'Performance improvement phase',
     color: 'bg-orange-50 border-orange-200 text-orange-700',
-    patterns: ['last7days', 'last14days', 'thisweek', 'lastweek']
+    patterns: ['last-7-days', 'last-14-days', 'this-week', 'last-week']
   },
   {
     phase: 'Scaling',
     duration: '2-4 weeks',
     description: 'Volume increase and expansion',
     color: 'bg-green-50 border-green-200 text-green-700',
-    patterns: ['last14days', 'last30days', 'thismonth', 'lastmonth']
+    patterns: ['last-14-days', 'last-30-days', 'this-month', 'last-month']
   },
   {
     phase: 'Maintenance',
     duration: 'Ongoing',
     description: 'Long-term monitoring',
     color: 'bg-purple-50 border-purple-200 text-purple-700',
-    patterns: ['last30days', 'last90days', 'quarter']
+    patterns: ['last-30-days', 'last-90-days', 'year-to-date']
   }
 ]
 
@@ -158,8 +158,8 @@ export function AffiliateCalendarPatterns({
         </CardHeader>
         <CardContent>
           <ElegantDateRangePicker
-            dateRange={currentRange}
-            onDateRangeChange={onDateRangeChange}
+            value={currentRange}
+            onChange={onDateRangeChange}
             size="lg"
             className="w-full"
           />
@@ -293,5 +293,3 @@ export function AffiliateCalendarPatterns({
     </div>
   )
 }
-
-export { AffiliateCalendarPatterns }

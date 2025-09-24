@@ -22,16 +22,9 @@ import {
   Settings,
   RotateCcw,
   Sparkles,
-  Zap,
   TrendingUp,
-  Eye,
-  ChevronUp
+  Eye
 } from 'lucide-react'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export interface TableFiltersState {
