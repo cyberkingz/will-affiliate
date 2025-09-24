@@ -30,6 +30,9 @@ interface RealClicksRequestBody {
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
 import { resolveNetworkAccess } from '@/lib/server/network-access'
 
+// Temporary: Clear cache to ensure fresh data with new date field format
+apiCache.clear()
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -143,15 +146,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Transform API response to match our interface
-    const transformedClicks: ClickData[] = clicksResponse.data.map(click => ({
-      id: click.unique_click_id || click.tracking_id,
-      dateTime: click.click_date,
-      offerName: click.offer?.offer_name || click.redirect_from_offer?.offer_name || 'Unknown Offer',
-      subId: click.subid_1 || '',
-      subId2: click.subid_2 || '',
-      campaignId: click.campaign_id ? String(click.campaign_id) : '',
-      price: click.price
-    }))
+    const transformedClicks: ClickData[] = clicksResponse.data.map(click => {
+      console.log('🔍 [REAL-CLICKS] Raw click date:', {
+        click_date: click.click_date,
+        type: typeof click.click_date
+      })
+      
+      return {
+        id: click.unique_click_id || click.tracking_id,
+        date: click.click_date || '',
+        time: click.click_date || '', // Same date field will be split in UI
+        offerName: click.offer?.offer_name || click.redirect_from_offer?.offer_name || 'Unknown Offer',
+        subId: click.subid_1 || '',
+        subId2: click.subid_2 || '',
+        campaignId: click.campaign_id ? String(click.campaign_id) : ''
+      }
+    })
 
     // Debug: Check subId2 values
     const hasSubId2 = transformedClicks.some(click => click.subId2)

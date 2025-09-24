@@ -4,6 +4,9 @@ import { AffiliateNetworkAPI, AffluentConversionData } from '@/lib/api/affiliate
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
 import { resolveNetworkAccess } from '@/lib/server/network-access'
 
+// Temporary: Clear cache to ensure fresh data with new date field format  
+apiCache.clear()
+
 type ConversionRecord = AffluentConversionData & Record<string, unknown>
 
 type ConversionsRequestParams = Parameters<AffiliateNetworkAPI['getConversions']>[0]
@@ -211,7 +214,8 @@ export async function POST(request: NextRequest) {
 
       return {
         id: conversion.conversion_id,
-        dateTime: conversion.conversion_date,
+        date: conversion.conversion_date || '',
+        time: conversion.conversion_date || '', // Same date field will be split in UI
         offerName: conversion.offer_name || 'Unknown Offer',
         subId: conversion.subid_1 || '',
         subId2: conversion.subid_2 || '',
