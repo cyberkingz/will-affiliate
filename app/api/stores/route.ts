@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (status && status !== 'all') {
-      query = query.eq('status', status)
+      query = query.eq('status', status as 'active' | 'inactive')
     }
 
     const { data: stores, error } = await query

@@ -399,7 +399,7 @@ export function StoresList({
                                       <AlertDialogHeader>
                                         <AlertDialogTitle className="text-white">Delete Store</AlertDialogTitle>
                                         <AlertDialogDescription className="text-neutral-400">
-                                          Are you sure you want to delete "{store.storeName}"? This action cannot be undone.
+                                          Are you sure you want to delete &quot;{store.storeName}&quot;? This action cannot be undone.
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
                                       <AlertDialogFooter>
@@ -538,7 +538,7 @@ export function StoresList({
                               <AlertDialogHeader>
                                 <AlertDialogTitle className="text-white">Delete Store</AlertDialogTitle>
                                 <AlertDialogDescription className="text-neutral-400">
-                                  Are you sure you want to delete "{store.storeName}"? This action cannot be undone.
+                                  Are you sure you want to delete &quot;{store.storeName}&quot;? This action cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>

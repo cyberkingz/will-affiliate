@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { StoresList } from '@/components/stores/stores-list'
@@ -14,10 +14,6 @@ import type { ShopifyStore, StoreStatus } from '@/components/stores/types'
 import { Database } from '@/types/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
-
-interface StoresPageProps {
-  user?: User
-}
 
 export default function ShopifyStoresPage() {
   const [stores, setStores] = useState<ShopifyStore[]>([])
@@ -75,7 +71,7 @@ export default function ShopifyStoresPage() {
   }, [])
 
   // Fetch stores from API
-  const fetchStores = async () => {
+  const fetchStores = useCallback(async () => {
     try {
       const params = new URLSearchParams()
       if (statusFilter !== 'all') {
@@ -90,7 +86,7 @@ export default function ShopifyStoresPage() {
       const data = await response.json()
       
       // Transform the database data to match our frontend interface
-      const transformedStores: ShopifyStore[] = data.stores.map((store: any) => ({
+      const transformedStores: ShopifyStore[] = data.stores.map((store: Database['public']['Tables']['shopify_stores']['Row']) => ({
         id: store.id,
         storeName: store.store_name,
         storeUrl: store.store_url,
@@ -105,14 +101,14 @@ export default function ShopifyStoresPage() {
     } catch (error) {
       console.error('Error fetching stores:', error)
     }
-  }
+  }, [statusFilter])
 
   // Refetch stores when status filter changes
   useEffect(() => {
     if (user) {
       fetchStores()
     }
-  }, [statusFilter, user])
+  }, [statusFilter, user, fetchStores])
 
   // Filter stores based on search and status
   const filteredStores = stores.filter(store => {

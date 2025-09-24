@@ -214,12 +214,10 @@ export async function POST(request: NextRequest) {
 
       return {
         id: conversion.conversion_id,
-        date: conversion.conversion_date || '',
-        time: conversion.conversion_date || '', // Same date field will be split in UI
+        dateTime: conversion.conversion_date || '',
         offerName: conversion.offer_name || 'Unknown Offer',
         subId: conversion.subid_1 || '',
         subId2: conversion.subid_2 || '',
-        campaignId: conversion.campaign_id ? String(conversion.campaign_id) : '',
         price: actualRevenue
       }
     })

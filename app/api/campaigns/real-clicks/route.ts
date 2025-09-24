@@ -154,8 +154,7 @@ export async function POST(request: NextRequest) {
       
       return {
         id: click.unique_click_id || click.tracking_id,
-        date: click.click_date || '',
-        time: click.click_date || '', // Same date field will be split in UI
+        dateTime: click.click_date || '',
         offerName: click.offer?.offer_name || click.redirect_from_offer?.offer_name || 'Unknown Offer',
         subId: click.subid_1 || '',
         subId2: click.subid_2 || '',
