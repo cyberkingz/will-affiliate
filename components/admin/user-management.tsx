@@ -86,6 +86,7 @@ interface NetworkAccessDialogProps {
   onSave: (userId: string, networkIds: string[]) => void
 }
 
+
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([])
   const [networks, setNetworks] = useState<NetworkConnection[]>([])
@@ -96,7 +97,6 @@ export function UserManagement() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
-  const [activeTab, setActiveTab] = useState('users')
   const [newUserData, setNewUserData] = useState({
     email: '',
     full_name: '',
@@ -370,7 +370,7 @@ export function UserManagement() {
   }
 
   const adminUsers = users.filter(u => u.role === 'admin')
-  const managerUsers = users.filter(u => u.role === 'staff') // Staff users are "managers"
+  const vaUsers = users.filter(u => u.role === 'staff') // Staff users are "virtual assistants"
   const activeUsers = users
 
   return (
@@ -432,7 +432,7 @@ export function UserManagement() {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="staff">Manager</SelectItem>
+                      <SelectItem value="staff">Virtual Assistant</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
@@ -487,8 +487,8 @@ export function UserManagement() {
         <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-neutral-400 text-sm font-medium">Managers</h3>
-              <p className="text-3xl font-bold text-white mt-2">{managerUsers.length}</p>
+              <h3 className="text-neutral-400 text-sm font-medium">Virtual Assistants</h3>
+              <p className="text-3xl font-bold text-white mt-2">{vaUsers.length}</p>
               <p className="text-neutral-400 text-sm mt-1">Campaign access</p>
             </div>
             <div className="text-green-400">
@@ -557,50 +557,18 @@ export function UserManagement() {
       <div className="border-b border-neutral-800">
         <div className="flex gap-8">
           <button
-            onClick={() => setActiveTab('users')}
-            className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'users' 
-                ? 'text-blue-400 border-blue-400' 
-                : 'text-neutral-400 border-transparent hover:text-white'
-            }`}
+            className="pb-4 text-sm font-medium border-b-2 text-blue-400 border-blue-400"
           >
             User Management
             <span className="ml-2 bg-neutral-800 text-white px-2 py-1 rounded text-xs">
               {users.length}
             </span>
           </button>
-          <button
-            onClick={() => setActiveTab('permissions')}
-            className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'permissions' 
-                ? 'text-blue-400 border-blue-400' 
-                : 'text-neutral-400 border-transparent hover:text-white'
-            }`}
-          >
-            Network Permissions
-            <span className="ml-2 bg-neutral-800 text-white px-2 py-1 rounded text-xs">
-              {networks.length}
-            </span>
-          </button>
-          <button
-            onClick={() => setActiveTab('activity')}
-            className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'activity' 
-                ? 'text-blue-400 border-blue-400' 
-                : 'text-neutral-400 border-transparent hover:text-white'
-            }`}
-          >
-            Activity Monitoring
-            <span className="ml-2 bg-neutral-800 text-white px-2 py-1 rounded text-xs">
-              3
-            </span>
-          </button>
         </div>
       </div>
 
       {/* Users Table */}
-      {activeTab === 'users' && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-lg">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg">
           <div className="p-6 border-b border-neutral-800">
             <h3 className="text-lg font-semibold text-white">Team Members</h3>
           </div>
@@ -616,7 +584,6 @@ export function UserManagement() {
                   <th className="text-left py-4 px-6 text-neutral-400 font-medium">Role</th>
                   <th className="text-left py-4 px-6 text-neutral-400 font-medium">Status</th>
                   <th className="text-left py-4 px-6 text-neutral-400 font-medium">Networks</th>
-                  <th className="text-left py-4 px-6 text-neutral-400 font-medium">Last Active</th>
                   <th className="text-right py-4 px-6 text-neutral-400 font-medium"></th>
                 </tr>
               </thead>
@@ -648,7 +615,7 @@ export function UserManagement() {
                           <div className={`w-2 h-2 rounded-full ${
                             user.role === 'admin' ? 'bg-purple-400' : 'bg-green-400'
                           }`}></div>
-                          {user.role === 'admin' ? 'Admin' : 'Manager'}
+                          {user.role === 'admin' ? 'Admin' : 'Virtual Assistant'}
                         </span>
                       </td>
                       <td className="py-4 px-6">
@@ -662,20 +629,11 @@ export function UserManagement() {
                           <span className="text-white text-sm">{userNetworks.length} networks</span>
                         </div>
                       </td>
-                      <td className="py-4 px-6">
-                        <div>
-                          <p className="text-white text-sm">244</p>
-                          <p className="text-neutral-400 text-xs">days ago</p>
-                        </div>
-                      </td>
                       <td className="py-4 px-6 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="text-neutral-400 hover:text-white">
-                              <span className="text-sm font-medium mr-2">{user.role === 'admin' ? 'Admin' : 'Manager'}</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m19 9-7 7-7-7" />
-                              </svg>
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-neutral-800 border-neutral-700">
@@ -697,7 +655,7 @@ export function UserManagement() {
                             {user.role !== 'staff' && (
                               <DropdownMenuItem onClick={() => updateUserRole(user.id, 'staff')} className="text-neutral-300 hover:text-white">
                                 <Users className="mr-2 h-4 w-4" />
-                                Make Manager
+                                Make Virtual Assistant
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator className="bg-neutral-700" />
@@ -710,9 +668,6 @@ export function UserManagement() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="ghost" size="sm" className="ml-2 text-neutral-400 hover:text-white">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
                       </td>
                     </tr>
                   )
@@ -721,7 +676,6 @@ export function UserManagement() {
             </table>
           </div>
         </div>
-      )}
 
       {/* Network Access Dialog */}
       {selectedUser && (
