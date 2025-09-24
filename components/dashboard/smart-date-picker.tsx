@@ -28,6 +28,10 @@ interface DateUsagePattern {
   avgSessionDuration?: number
 }
 
+interface SerializedDateUsagePattern extends Omit<DateUsagePattern, 'lastUsed'> {
+  lastUsed: string
+}
+
 // Common affiliate marketing periods with business context
 const SMART_SUGGESTIONS = [
   {
@@ -84,9 +88,10 @@ export function SmartDatePicker({
     const stored = localStorage.getItem('datePickerUsagePatterns')
     if (stored) {
       try {
-        const patterns = JSON.parse(stored).map((p: any) => ({
-          ...p,
-          lastUsed: new Date(p.lastUsed)
+        const serializedPatterns = JSON.parse(stored) as SerializedDateUsagePattern[]
+        const patterns = serializedPatterns.map(pattern => ({
+          ...pattern,
+          lastUsed: new Date(pattern.lastUsed)
         }))
         setUsagePatterns(patterns)
       } catch {

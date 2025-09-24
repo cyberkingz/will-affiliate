@@ -129,6 +129,34 @@ export interface Database {
           }
         ]
       }
+      team_memberships: {
+        Row: {
+          team_id: string
+          user_id: string
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          team_id: string
+          user_id: string
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          team_id?: string
+          user_id?: string
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_memberships_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       campaigns_data: {
         Row: {
           id: string

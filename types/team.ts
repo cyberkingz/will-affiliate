@@ -79,7 +79,7 @@ export interface TeamAuditLog {
   action: string
   resource_type?: string
   resource_id?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   ip_address?: string
   user_agent?: string
   created_at: string

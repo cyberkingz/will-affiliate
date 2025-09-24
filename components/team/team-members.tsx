@@ -178,9 +178,10 @@ export function TeamMembers({ teamId }: TeamMembersProps) {
 
       if (error) throw error
       toast.success('Invitation resent')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error resending invitation:', error)
-      toast.error(error.message || 'Failed to resend invitation')
+      const message = error instanceof Error ? error.message : 'Failed to resend invitation'
+      toast.error(message)
     }
   }
 
@@ -353,7 +354,7 @@ export function TeamMembers({ teamId }: TeamMembersProps) {
             <CardHeader>
               <CardTitle>Pending Invitations</CardTitle>
               <CardDescription>
-                Invitations that haven't been accepted yet
+                Invitations that have not been accepted yet
               </CardDescription>
             </CardHeader>
             <CardContent>

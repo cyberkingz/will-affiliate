@@ -82,9 +82,10 @@ export function InviteTeamMember({ teamId, onInvited, trigger }: InviteTeamMembe
       setRole('member')
       setIsOpen(false)
       onInvited?.()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error inviting member:', error)
-      toast.error(error.message || 'Failed to send invitation')
+      const message = error instanceof Error ? error.message : 'Failed to send invitation'
+      toast.error(message)
     } finally {
       setIsInviting(false)
     }
@@ -113,7 +114,7 @@ export function InviteTeamMember({ teamId, onInvited, trigger }: InviteTeamMembe
             Invite Team Member
           </DialogTitle>
           <DialogDescription>
-            Send an invitation to join your team. They'll receive an email with instructions.
+            Send an invitation to join your team. They will receive an email with instructions.
           </DialogDescription>
         </DialogHeader>
         
@@ -161,8 +162,8 @@ export function InviteTeamMember({ teamId, onInvited, trigger }: InviteTeamMembe
             <p className="font-medium mb-1">What happens next?</p>
             <ul className="space-y-1 list-disc list-inside text-xs">
               <li>An invitation email will be sent to {email || 'the recipient'}</li>
-              <li>They'll have 7 days to accept the invitation</li>
-              <li>Once accepted, they'll have {role} access to your team</li>
+              <li>They will have 7 days to accept the invitation</li>
+              <li>Once accepted, they will have {role} access to your team</li>
             </ul>
           </div>
         </div>

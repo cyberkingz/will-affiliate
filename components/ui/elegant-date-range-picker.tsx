@@ -76,7 +76,7 @@ export function ElegantDateRangePicker({
     setShowCalendar(false)
   }
 
-  const handleCalendarSelect = (range: any) => {
+  const handleCalendarSelect = (range: Partial<DateRange> | undefined) => {
     if (range?.from && range?.to) {
       onChange({ from: range.from, to: range.to })
       setSelectedTemplate(null)

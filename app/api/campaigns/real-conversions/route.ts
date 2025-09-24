@@ -4,6 +4,8 @@ import { AffiliateNetworkAPI, AffluentConversionData } from '@/lib/api/affiliate
 import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
 import { resolveNetworkAccess } from '@/lib/server/network-access'
 
+type ConversionRecord = AffluentConversionData & Record<string, unknown>
+
 type ConversionsRequestParams = Parameters<AffiliateNetworkAPI['getConversions']>[0]
 
 type ConversionTableFilters = {
@@ -144,81 +146,77 @@ export async function POST(request: NextRequest) {
 
     // Debug: Log the structure of the first few conversions
     if (conversionsResponse.data && conversionsResponse.data.length > 0) {
-      console.log('🔍 [REAL-CONVERSIONS] First conversion structure:', JSON.stringify(conversionsResponse.data[0], null, 2))
-      console.log('🔍 [REAL-CONVERSIONS] Available fields in conversion object:', Object.keys(conversionsResponse.data[0]))
-      
-      // 🎯 AUDIT: Check for revenue-related fields
+      const sampleConversion = conversionsResponse.data[0] as ConversionRecord
+      console.log('🔍 [REAL-CONVERSIONS] First conversion structure:', JSON.stringify(sampleConversion, null, 2))
+      console.log('🔍 [REAL-CONVERSIONS] Available fields in conversion object:', Object.keys(sampleConversion))
+
       const revenueFields = ['revenue', 'payout', 'commission', 'sale_amount', 'earning', 'amount']
-      const conversionObj = conversionsResponse.data[0] as any
-      
+
       console.log('💰 [REAL-CONVERSIONS] REVENUE FIELD AUDIT:', revenueFields.map(field => ({
         field,
-        value: conversionObj[field],
-        type: typeof conversionObj[field],
-        present: field in conversionObj
+        value: sampleConversion[field as keyof ConversionRecord],
+        type: typeof sampleConversion[field as keyof ConversionRecord],
+        present: field in sampleConversion
       })))
-      
-      // 🎯 AUDIT: Check for status fields
+
       const statusFields = ['status', 'conversion_status', 'disposition', 'state', 'approved']
       console.log('📊 [REAL-CONVERSIONS] STATUS FIELD AUDIT:', statusFields.map(field => ({
         field,
-        value: conversionObj[field],
-        type: typeof conversionObj[field],
-        present: field in conversionObj
+        value: sampleConversion[field as keyof ConversionRecord],
+        type: typeof sampleConversion[field as keyof ConversionRecord],
+        present: field in sampleConversion
       })))
-      
-      // 🎯 AUDIT: Check for attribution fields
+
       const attributionFields = ['click_id', 'session_id', 'campaign_id', 'advertiser_id']
       console.log('🔗 [REAL-CONVERSIONS] ATTRIBUTION FIELD AUDIT:', attributionFields.map(field => ({
         field,
-        value: conversionObj[field],
-        type: typeof conversionObj[field],
-        present: field in conversionObj
+        value: sampleConversion[field as keyof ConversionRecord],
+        type: typeof sampleConversion[field as keyof ConversionRecord],
+        present: field in sampleConversion
       })))
-      
-      // 🎯 AUDIT: Check all fields with numeric values > 0
-      const numericFields = Object.entries(conversionObj)
-        .filter(([key, value]) => typeof value === 'number' && value > 0)
-        .map(([key, value]) => ({ field: key, value }))
+
+      const numericFields = Object.entries(sampleConversion)
+        .filter(([, value]) => typeof value === 'number' && value > 0)
+        .map(([field, value]) => ({ field, value }))
       console.log('🔢 [REAL-CONVERSIONS] NON-ZERO NUMERIC FIELDS:', numericFields)
     }
 
-    // Transform API response to match our interface
     const transformedConversions: ConversionRow[] = conversionsResponse.data.map(conversion => {
-      // 🎯 IMPROVED: Smart revenue detection with fallback hierarchy
-      const conversionAny = conversion as any
-      const actualRevenue = 
-        conversionAny.revenue ||           // Primary: conversion revenue
-        conversionAny.payout ||            // Secondary: affiliate payout
-        conversionAny.commission ||        // Tertiary: commission amount
-        conversionAny.earning ||           // Alternative: earning amount
-        conversionAny.amount ||            // Generic: amount field
-        conversionAny.sale_amount ||       // RevShare: total sale amount
-        conversion.price ||                // Fallback: offer price (CPA)
-        0
-      
+      const conversionRecord = conversion as ConversionRecord
+
+      const revenueCandidates = [
+        conversionRecord.revenue,
+        conversionRecord.payout,
+        conversionRecord.commission,
+        conversionRecord.earning,
+        conversionRecord.amount,
+        conversionRecord.sale_amount
+      ]
+
+      const detectedRevenue = revenueCandidates.find((value): value is number => typeof value === 'number' && !Number.isNaN(value))
+      const actualRevenue = detectedRevenue ?? conversion.price ?? 0
+
       console.log(`💰 [REAL-CONVERSIONS] Conversion ${conversion.conversion_id} revenue calculation:`, {
         originalPrice: conversion.price,
         detectedRevenue: actualRevenue,
         sources: {
-          revenue: conversionAny.revenue,
-          payout: conversionAny.payout,
-          commission: conversionAny.commission,
-          earning: conversionAny.earning,
-          amount: conversionAny.amount,
-          sale_amount: conversionAny.sale_amount
+          revenue: conversionRecord.revenue,
+          payout: conversionRecord.payout,
+          commission: conversionRecord.commission,
+          earning: conversionRecord.earning,
+          amount: conversionRecord.amount,
+          sale_amount: conversionRecord.sale_amount
         }
       })
-      
+
       return {
         id: conversion.conversion_id,
-        date: conversion.conversion_date, // Keep the full ISO date string
-        time: conversion.conversion_date, // Same for time - will be parsed in component
+        dateTime: conversion.conversion_date,
         offerName: conversion.offer_name || 'Unknown Offer',
-        subId: conversion.subid_1 || '', // Affluent uses "subid_1"
-        subId2: conversion.subid_2 || '', // Affluent uses "subid_2"
+        subId: conversion.subid_1 || '',
+        subId2: conversion.subid_2 || '',
         campaignId: conversion.campaign_id ? String(conversion.campaign_id) : '',
-        price: actualRevenue // 🎯 Use smart revenue detection
+        price: actualRevenue
       }
     })
 

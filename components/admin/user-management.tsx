@@ -143,8 +143,7 @@ export function UserManagement() {
       if (networksError) throw networksError
       
       // Add Affluent network if it's not already in the database
-      let allNetworks = networksData || []
-      const affluentExists = allNetworks.some(network => network.network_type === 'affluent')
+      const allNetworks = networksData || []
       
       // Note: Temporarily disabled hardcoded network to avoid UUID conflicts
       // Network connections should be properly set up in the database
@@ -212,9 +211,10 @@ export function UserManagement() {
       setIsCreateDialogOpen(false)
       setNewUserData({ email: '', full_name: '', role: 'staff' })
       loadData()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating user:', error)
-      toast.error(error.message || 'Failed to create user')
+      const message = error instanceof Error ? error.message : 'Failed to create user'
+      toast.error(message)
     } finally {
       setIsCreating(false)
     }
@@ -244,9 +244,10 @@ export function UserManagement() {
       setIsCreateNetworkDialogOpen(false)
       setNewNetworkData({ name: '', affiliate_id: '', api_key: '' })
       loadData()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating network:', error)
-      toast.error(error.message || 'Failed to create network')
+      const message = error instanceof Error ? error.message : 'Failed to create network'
+      toast.error(message)
     } finally {
       setIsCreatingNetwork(false)
     }
@@ -287,9 +288,10 @@ export function UserManagement() {
 
       setUsers(prev => prev.filter(u => u.id !== userId))
       toast.success('User deleted successfully')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting user:', error)
-      toast.error(error.message || 'Failed to delete user')
+      const message = error instanceof Error ? error.message : 'Failed to delete user'
+      toast.error(message)
     }
   }
 
@@ -337,9 +339,10 @@ export function UserManagement() {
 
       loadData()
       toast.success('Network access updated')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating network access:', error)
-      toast.error(error.message || 'Failed to update network access')
+      const message = error instanceof Error ? error.message : 'Failed to update network access'
+      toast.error(message)
     }
   }
 
@@ -444,7 +447,7 @@ export function UserManagement() {
                 </div>
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                   <p className="text-sm text-blue-700">
-                    💡 An invitation email will be sent to the user. They'll set their own password via the email link.
+                    💡 An invitation email will be sent to the user. They will set their own password via the email link.
                   </p>
                 </div>
               </div>
@@ -817,7 +820,7 @@ export function UserManagement() {
 
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
               <p className="text-sm text-blue-700">
-                💡 The API key will be encrypted and stored securely. It's used to fetch campaign data and performance metrics.
+                💡 The API key will be encrypted and stored securely. It is used to fetch campaign data and performance metrics.
               </p>
             </div>
           </div>

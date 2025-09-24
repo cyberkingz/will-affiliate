@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useId, useCallback } from 'react'
-import { Settings2, X, Check, ChevronDown, Filter, Sparkles, Network, Target, Hash, Zap } from 'lucide-react'
+import { Settings2, X, Check, ChevronDown, Filter, Sparkles, Network, Target, Hash, Zap, CalendarIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import {
@@ -326,80 +326,6 @@ export function EnhancedFilterPanel({
               </motion.div>
             </SheetTrigger>
         
-        {/* Filter Chips with Enhanced Styling */}
-        {(filters.networks.length > 0 || filters.offers.length > 0 || filters.subIds.length > 0) && (
-          <motion.div 
-            className="flex flex-wrap items-center gap-3"
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-          >
-            <AnimatePresence mode="popLayout">
-              {/* Network Filter Chips */}
-              {filters.networks.map((networkId) => {
-                const network = availableNetworks.find(n => n.id === networkId)
-                return (
-                  <FilterChip
-                    key={`network-${networkId}`}
-                    label={network?.name || networkId}
-                    variant="network"
-                    onRemove={() => removeFilter('networks', networkId)}
-                  />
-                )
-              })}
-              
-              {/* Offer Filter Chips */}
-              {filters.offers.map((offerId) => {
-                const offer = [...availableOffers, ...networkOffers].find(o => o.id === offerId)
-                return (
-                  <FilterChip
-                    key={`offer-${offerId}`}
-                    label={offer?.name || offerId}
-                    variant="offer"
-                    onRemove={() => removeFilter('offers', offerId)}
-                  />
-                )
-              })}
-              
-              {/* Sub ID Filter Chips */}
-              {filters.subIds.map((subId) => (
-                <FilterChip
-                  key={`subid-${subId}`}
-                  label={subId}
-                  variant="subid"
-                  onRemove={() => removeFilter('subIds', subId)}
-                />
-              ))}
-            </AnimatePresence>
-            
-            {/* Clear All Button - Enhanced */}
-            {activeFiltersCount > 0 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button 
-                  variant="ghost" 
-                  size={compactMode ? "sm" : "default"}
-                  onClick={clearFilters}
-                  className={cn(
-                    "text-muted-foreground hover:text-destructive transition-all duration-200",
-                    "hover:bg-destructive/10 hover:shadow-sm",
-                    compactMode ? "h-9 text-xs" : "h-11"
-                  )}
-                >
-                  <X className={cn("mr-1", compactMode ? "h-3 w-3" : "h-4 w-4")} />
-                  Clear All
-                </Button>
-              </motion.div>
-            )}
-          </motion.div>
-        )}
-      </div>
-          
           <SheetContent id="enhanced-filter-editor" className="sm:max-w-lg overflow-hidden">
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -524,7 +450,7 @@ export function EnhancedFilterPanel({
                     </CommandList>
                   </Command>
                 )}
-              </div>
+              </motion.div>
               
               <Separator />
 
@@ -625,7 +551,7 @@ export function EnhancedFilterPanel({
                 )}
               </div>
             </div>
-            
+
             {/* Enhanced Footer Actions */}
             <motion.div 
               className="flex justify-between pt-6 border-t border-border/50"
@@ -658,6 +584,77 @@ export function EnhancedFilterPanel({
           </motion.div>
           </SheetContent>
         </Sheet>
+
+        </motion.div>
+
+        {/* Filter Chips with Enhanced Styling */}
+        {(filters.networks.length > 0 || filters.offers.length > 0 || filters.subIds.length > 0) && (
+          <motion.div 
+            className="flex flex-wrap items-center gap-3"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <AnimatePresence mode="popLayout">
+              {filters.networks.map((networkId) => {
+                const network = availableNetworks.find(n => n.id === networkId)
+                return (
+                  <FilterChip
+                    key={`network-${networkId}`}
+                    label={network?.name || networkId}
+                    variant="network"
+                    onRemove={() => removeFilter('networks', networkId)}
+                  />
+                )
+              })}
+
+              {filters.offers.map((offerId) => {
+                const offer = [...availableOffers, ...networkOffers].find(o => o.id === offerId)
+                return (
+                  <FilterChip
+                    key={`offer-${offerId}`}
+                    label={offer?.name || offerId}
+                    variant="offer"
+                    onRemove={() => removeFilter('offers', offerId)}
+                  />
+                )
+              })}
+
+              {filters.subIds.map((subId) => (
+                <FilterChip
+                  key={`subid-${subId}`}
+                  label={subId}
+                  variant="subid"
+                  onRemove={() => removeFilter('subIds', subId)}
+                />
+              ))}
+            </AnimatePresence>
+
+            {activeFiltersCount > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button 
+                  variant="ghost" 
+                  size={compactMode ? 'sm' : 'default'}
+                  onClick={clearFilters}
+                  className={cn(
+                    'text-muted-foreground hover:text-destructive transition-all duration-200',
+                    'hover:bg-destructive/10 hover:shadow-sm',
+                    compactMode ? 'h-9 text-xs' : 'h-11'
+                  )}
+                >
+                  <X className={cn('mr-1', compactMode ? 'h-3 w-3' : 'h-4 w-4')} />
+                  Clear All
+                </Button>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
       </div>
     </motion.div>
   )

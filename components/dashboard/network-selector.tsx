@@ -56,7 +56,7 @@ export function NetworkSelector({
             </div>
             <CardTitle>No Networks Available</CardTitle>
             <CardDescription>
-              You don't have access to any networks yet. Contact your administrator to get network access.
+              You do not have access to any networks yet. Contact your administrator to get network access.
             </CardDescription>
           </CardHeader>
         </Card>

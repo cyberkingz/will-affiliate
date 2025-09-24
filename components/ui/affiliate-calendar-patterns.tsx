@@ -174,7 +174,7 @@ export function AffiliateCalendarPatterns({
             Campaign Phase Patterns
           </CardTitle>
           <CardDescription>
-            Select date ranges based on your campaign's current phase
+            Select date ranges based on the current campaign phase
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -253,7 +253,7 @@ export function TeamSettingsPage() {
             Subscription & Billing
           </CardTitle>
           <CardDescription>
-            Manage your team's subscription and billing
+            Manage your team subscription and billing
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -449,11 +449,11 @@ export function TeamSettingsPage() {
                     <AlertTriangle className="h-5 w-5 text-destructive" />
                     Delete Team
                   </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the team
-                    "{currentTeam.name}" and remove all associated data including campaigns,
-                    network connections, and member access.
-                  </AlertDialogDescription>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete the team{' '}
+            <span className="font-semibold">{currentTeam.name}</span> and remove all associated data including campaigns,
+            network connections, and member access.
+          </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
