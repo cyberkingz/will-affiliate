@@ -57,6 +57,8 @@ interface FilterPanelProps {
   availableOffers: Array<{ id: string; name: string }>
   availableSubIds: string[]
   isLoading?: boolean
+  onApply: () => void
+  hasPendingChanges: boolean
 }
 
 export function FilterPanel({
@@ -65,11 +67,18 @@ export function FilterPanel({
   availableNetworks,
   availableOffers,
   availableSubIds,
-  isLoading = false
+  isLoading = false,
+  onApply,
+  hasPendingChanges
 }: FilterPanelProps) {
   const [isEditMode, setIsEditMode] = useState(false)
   const [networkOffers, setNetworkOffers] = useState<Array<{ id: string; name: string }>>([])
   const [loadingOffers, setLoadingOffers] = useState(false)
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
+  const [pendingDateRange, setPendingDateRange] = useState<DateRange>({
+    from: filters.dateRange.from,
+    to: filters.dateRange.to
+  })
   
   const templates = getDateTemplates()
 
@@ -103,17 +112,33 @@ export function FilterPanel({
     }
   }, [filters.networks])
 
+  React.useEffect(() => {
+    if (!isDatePopoverOpen) {
+      setPendingDateRange({
+        from: filters.dateRange.from,
+        to: filters.dateRange.to
+      })
+    }
+  }, [filters.dateRange, isDatePopoverOpen])
+
   const applyTemplate = (templateId: string) => {
     const template = templates.find(t => t.id === templateId)
     if (template) {
       const dateRange = template.getValue()
-      updateFilters({ dateRange })
+      setPendingDateRange(dateRange)
     }
   }
 
   const handleDateRangeSelect = (range: DateRange | undefined) => {
     if (range?.from && range?.to) {
-      updateFilters({ dateRange: { from: range.from, to: range.to } })
+      setPendingDateRange({ from: range.from, to: range.to })
+    }
+  }
+
+  const applyDateRange = () => {
+    if (pendingDateRange?.from && pendingDateRange?.to) {
+      updateFilters({ dateRange: { from: pendingDateRange.from, to: pendingDateRange.to } })
+      setIsDatePopoverOpen(false)
     }
   }
 
@@ -173,32 +198,44 @@ export function FilterPanel({
       aria-busy={isLoading}
     >
       <div className="flex flex-wrap items-center gap-2">
-        {/* Simple Date Range Picker */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="h-8 justify-start text-left font-normal"
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {filters.dateRange?.from ? (
-                filters.dateRange.to ? (
-                  <>
-                    {format(filters.dateRange.from, "LLL dd, y")} -{" "}
-                    {format(filters.dateRange.to, "LLL dd, y")}
-                  </>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Simple Date Range Picker */}
+          <Popover
+            open={isDatePopoverOpen}
+            onOpenChange={(open) => {
+              setIsDatePopoverOpen(open)
+              if (open) {
+                setPendingDateRange({
+                  from: filters.dateRange.from,
+                  to: filters.dateRange.to
+                })
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-8 justify-start text-left font-normal"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filters.dateRange?.from ? (
+                  filters.dateRange.to ? (
+                    <>
+                      {format(filters.dateRange.from, "LLL dd, y")} -{" "}
+                      {format(filters.dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(filters.dateRange.from, "LLL dd, y")
+                  )
                 ) : (
-                  format(filters.dateRange.from, "LLL dd, y")
-                )
-              ) : (
-                <span>Pick a date</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 shadow-xl border-border/50 backdrop-blur-sm" align="start">
-            <div className="p-3 border-b border-border/40">
-              <div className="text-sm font-medium mb-3 text-foreground/90">Date Templates</div>
-              <Select onValueChange={applyTemplate}>
+                  <span>Pick a date</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 shadow-xl border-border/50 backdrop-blur-sm" align="start">
+              <div className="p-3 border-b border-border/40">
+                <div className="text-sm font-medium mb-3 text-foreground/90">Date Templates</div>
+                <Select onValueChange={applyTemplate}>
                 <SelectTrigger className="h-9 text-sm border-border/50 hover:border-border bg-background/50 backdrop-blur-sm">
                   <SelectValue placeholder="Choose a date range..." />
                 </SelectTrigger>
@@ -267,8 +304,8 @@ export function FilterPanel({
             </div>
             <Calendar
               mode="range"
-              defaultMonth={filters.dateRange?.from}
-              selected={filters.dateRange}
+              defaultMonth={pendingDateRange?.from}
+              selected={pendingDateRange}
               onSelect={handleDateRangeSelect}
               numberOfMonths={2}
               classNames={{
@@ -305,10 +342,32 @@ export function FilterPanel({
                 disabled: "text-muted-foreground/30 opacity-30 cursor-not-allowed hover:opacity-30"
               }}
             />
+            <div className="flex justify-end gap-2 border-t border-border/40 px-3 py-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsDatePopoverOpen(false)
+                  setPendingDateRange({
+                    from: filters.dateRange.from,
+                    to: filters.dateRange.to
+                  })
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={applyDateRange}
+                disabled={!pendingDateRange?.from || !pendingDateRange?.to}
+              >
+                Apply
+              </Button>
+            </div>
           </PopoverContent>
-        </Popover>
-        
-        {/* Filter Chips */}
+          </Popover>
+
+          {/* Filter Chips */}
         {filters.networks.map((networkId) => {
           const network = availableNetworks.find(n => n.id === networkId)
           return (
@@ -368,25 +427,27 @@ export function FilterPanel({
             </Button>
           </Badge>
         ))}
-        
-        {/* Edit Filters Button */}
-        <Sheet open={isEditMode} onOpenChange={setIsEditMode}>
-          <SheetTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="h-8 text-xs font-normal"
-            >
-              <Settings2 className="h-3 w-3 mr-1" />
-              Edit Filters
-              {activeFiltersCount > 0 && (
-                <Badge variant="secondary" className="ml-2 h-4 text-xs px-1">
-                  {activeFiltersCount}
-                </Badge>
-              )}
-            </Button>
-          </SheetTrigger>
-          <SheetContent className="sm:max-w-md flex flex-col h-full">
+        </div>
+
+        <div className="flex items-center gap-2 ml-auto">
+          {/* Edit Filters Button */}
+          <Sheet open={isEditMode} onOpenChange={setIsEditMode}>
+            <SheetTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="h-8 text-xs font-normal"
+              >
+                <Settings2 className="h-3 w-3 mr-1" />
+                Edit Filters
+                {activeFiltersCount > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-4 text-xs px-1">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="sm:max-w-md flex flex-col h-full">
             <SheetHeader className="shrink-0">
               <SheetTitle>Edit Filters</SheetTitle>
               <SheetDescription>
@@ -534,7 +595,16 @@ export function FilterPanel({
             </div>
           </SheetContent>
         </Sheet>
-        
+
+        <Button
+          size="sm"
+          className="h-8 text-xs font-semibold"
+          onClick={onApply}
+          disabled={!hasPendingChanges || isLoading}
+        >
+          Apply Filters
+        </Button>
+
         {activeFiltersCount > 0 && (
           <Button 
             variant="ghost" 
@@ -545,6 +615,7 @@ export function FilterPanel({
             Clear All
           </Button>
         )}
+        </div>
       </div>
     </div>
   )

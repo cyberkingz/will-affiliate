@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { FilterPanel, FilterState } from '@/components/dashboard/filter-panel'
 import { KPICards, KPIData } from '@/components/dashboard/kpi-cards'
@@ -65,8 +65,29 @@ const getDefaultFilters = (): FilterState => {
   }
 }
 
+const cloneFilterState = (state: FilterState): FilterState => ({
+  dateRange: {
+    from: new Date(state.dateRange.from),
+    to: new Date(state.dateRange.to)
+  },
+  networks: [...state.networks],
+  offers: [...state.offers],
+  subIds: [...state.subIds]
+})
+
+const arraysEqual = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((value, index) => value === b[index])
+
+const areFilterStatesEqual = (a: FilterState, b: FilterState): boolean =>
+  a.dateRange.from.getTime() === b.dateRange.from.getTime() &&
+  a.dateRange.to.getTime() === b.dateRange.to.getTime() &&
+  arraysEqual(a.networks, b.networks) &&
+  arraysEqual(a.offers, b.offers) &&
+  arraysEqual(a.subIds, b.subIds)
+
 export function DashboardContent({ user }: DashboardContentProps) {
   const [filters, setFilters] = useState<FilterState>(getDefaultFilters)
+  const [draftFilters, setDraftFilters] = useState<FilterState>(getDefaultFilters)
 
   const [kpiData, setKpiData] = useState<KPIData>(createDefaultKpiData)
 
@@ -87,6 +108,16 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [availableTableSubIds, setAvailableTableSubIds] = useState<string[]>([])
   const [availableTableSubIds2, setAvailableTableSubIds2] = useState<string[]>([])
   const selectedNetworks = filters.networks
+
+  useEffect(() => {
+    setDraftFilters(cloneFilterState(filters))
+  }, [filters])
+
+  const hasPendingChanges = useMemo(() => !areFilterStatesEqual(filters, draftFilters), [filters, draftFilters])
+
+  const handleApplyFilters = useCallback(() => {
+    setFilters(cloneFilterState(draftFilters))
+  }, [draftFilters])
 
   useEffect(() => {
     if (availableNetworks.length === 0) {
@@ -159,11 +190,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
           .filter(id => accessibleNetworkIds.has(id))
           .slice(0, 1)
 
-        if (filteredNetworks.length !== filters.networks.length) {
-          setFilters(prev => ({ ...prev, networks: filteredNetworks }))
-        }
+      if (filteredNetworks.length !== filters.networks.length) {
+        setFilters(prev => ({ ...prev, networks: filteredNetworks }))
+      }
 
-        effectiveNetworks = filteredNetworks
+      effectiveNetworks = filteredNetworks
       }
 
       if (effectiveNetworks.length > 1) {
@@ -285,12 +316,14 @@ export function DashboardContent({ user }: DashboardContentProps) {
           {/* Show filter panel only when networks are selected */}
           {filters.networks && filters.networks.length > 0 && (
             <FilterPanel
-              filters={filters}
-              onFiltersChange={setFilters}
+              filters={draftFilters}
+              onFiltersChange={setDraftFilters}
               availableNetworks={availableNetworks}
               availableOffers={availableOffers}
               availableSubIds={availableSubIds}
               isLoading={isLoading}
+              onApply={handleApplyFilters}
+              hasPendingChanges={hasPendingChanges}
             />
           )}
 
@@ -300,6 +333,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
               availableNetworks={availableNetworks}
               onNetworksSelected={(networkIds) => {
                 const firstNetwork = networkIds[0]
+                setDraftFilters(prev => ({ ...prev, networks: firstNetwork ? [firstNetwork] : [] }))
                 setFilters(prev => ({ ...prev, networks: firstNetwork ? [firstNetwork] : [] }))
               }}
             />
