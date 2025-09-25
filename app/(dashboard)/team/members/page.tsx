@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { TeamMembers } from '@/components/team/team-members'
 
 export default async function TeamMembersPage() {
@@ -8,7 +7,7 @@ export default async function TeamMembersPage() {
   
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   const { data: userProfile } = await supabase
@@ -18,7 +17,7 @@ export default async function TeamMembersPage() {
     .single()
 
   if (!userProfile) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   // Get user's current team (for now, we'll use the first team they belong to)
@@ -36,10 +35,8 @@ export default async function TeamMembersPage() {
   }
 
   return (
-    <DashboardLayout user={userProfile}>
-      <div className="container mx-auto px-6 py-8">
-        <TeamMembers teamId={membership.team_id} />
-      </div>
-    </DashboardLayout>
+    <div className="container mx-auto px-6 py-8">
+      <TeamMembers teamId={membership.team_id} />
+    </div>
   )
 }

@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { TeamSettingsPage } from '@/components/team/team-settings'
 
 export default async function TeamSettingsPageRoute() {
@@ -8,7 +7,7 @@ export default async function TeamSettingsPageRoute() {
   
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   const { data: userProfile } = await supabase
@@ -18,14 +17,12 @@ export default async function TeamSettingsPageRoute() {
     .single()
 
   if (!userProfile) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   return (
-    <DashboardLayout user={userProfile}>
-      <div className="container mx-auto px-6 py-8">
-        <TeamSettingsPage />
-      </div>
-    </DashboardLayout>
+    <div className="container mx-auto px-6 py-8">
+      <TeamSettingsPage />
+    </div>
   )
 }

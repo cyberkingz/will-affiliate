@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { UserManagement } from '@/components/admin/user-management'
 
 export default async function AdminUsersPage() {
@@ -8,7 +7,7 @@ export default async function AdminUsersPage() {
   
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   const { data: userProfile } = await supabase
@@ -22,10 +21,8 @@ export default async function AdminUsersPage() {
   }
 
   return (
-    <DashboardLayout user={userProfile}>
-      <div className="container mx-auto px-6 py-8">
-        <UserManagement />
-      </div>
-    </DashboardLayout>
+    <div className="container mx-auto px-6 py-8">
+      <UserManagement />
+    </div>
   )
 }

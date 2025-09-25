@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { FilterPanel, FilterState } from '@/components/dashboard/filter-panel'
 import { KPICards, KPIData } from '@/components/dashboard/kpi-cards'
 import { TrendsChart, TrendData } from '@/components/dashboard/trends-chart'
@@ -9,13 +8,7 @@ import { ClicksTable, ClickData } from '@/components/dashboard/clicks-table'
 import { ConversionsTable, ConversionData } from '@/components/dashboard/conversions-table'
 import { TableFilters, TableFiltersState } from '@/components/dashboard/table-filters'
 import { NetworkSelector } from '@/components/dashboard/network-selector'
-import { Database } from '@/types/supabase'
-
-type User = Database['public']['Tables']['users']['Row']
-
-interface DashboardContentProps {
-  user: User
-}
+import { useDashboardUser } from '@/components/dashboard/dashboard-user-context'
 
 type FiltersApiResponse = {
   networks: Array<{ id: string; name: string; status?: string }>
@@ -85,7 +78,8 @@ const areFilterStatesEqual = (a: FilterState, b: FilterState): boolean =>
   arraysEqual(a.offers, b.offers) &&
   arraysEqual(a.subIds, b.subIds)
 
-export function DashboardContent({ user }: DashboardContentProps) {
+export function DashboardContent() {
+  useDashboardUser()
   const [filters, setFilters] = useState<FilterState>(getDefaultFilters)
   const [draftFilters, setDraftFilters] = useState<FilterState>(getDefaultFilters)
 
@@ -310,8 +304,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
   }, [fetchData])
 
   return (
-    <DashboardLayout user={user}>
-      <main className="container mx-auto px-6 py-8">
+    <main className="container mx-auto px-6 py-8">
         <div className="space-y-6">
           {/* Show filter panel only when networks are selected */}
           {filters.networks && filters.networks.length > 0 && (
@@ -384,6 +377,5 @@ export function DashboardContent({ user }: DashboardContentProps) {
           )}
         </div>
       </main>
-    </DashboardLayout>
   )
 }
