@@ -26,8 +26,7 @@ import { Badge } from '@/components/ui/badge'
 
 export interface ConversionData {
   id: string
-  date: string
-  time: string
+  dateTime: string
   offerName: string
   subId: string
   subId2: string
@@ -75,7 +74,7 @@ export const ConversionsTable = React.memo(({ data, isLoading, totalCount, onExp
 
   const columns: ColumnDef<ConversionData>[] = [
     {
-      accessorKey: 'date',
+      accessorKey: 'dateTime',
       header: ({ column }) => {
         return (
           <Button
@@ -89,7 +88,7 @@ export const ConversionsTable = React.memo(({ data, isLoading, totalCount, onExp
         )
       },
       cell: ({ row }) => {
-        const { dateStr, timeStr } = formatDateTime(row.original.date)
+        const { dateStr, timeStr } = formatDateTime(row.original.dateTime)
         return (
           <div className="text-sm">
             <div className="text-neutral-200">{dateStr}</div>

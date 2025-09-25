@@ -26,8 +26,7 @@ import { Badge } from '@/components/ui/badge'
 
 export interface ClickData {
   id: string
-  date: string
-  time: string
+  dateTime: string
   offerName: string
   subId: string
   subId2: string
@@ -74,7 +73,7 @@ export const ClicksTable = React.memo(({ data, isLoading, totalCount, onExport }
 
   const columns: ColumnDef<ClickData>[] = [
     {
-      accessorKey: 'date',
+      accessorKey: 'dateTime',
       header: ({ column }) => {
         return (
           <Button
@@ -88,7 +87,7 @@ export const ClicksTable = React.memo(({ data, isLoading, totalCount, onExport }
         )
       },
       cell: ({ row }) => {
-        const dateValue = row.original.date
+        const dateValue = row.original.dateTime
         console.log('📅 [CLICKS-TABLE] Date value:', dateValue, typeof dateValue)
         const { dateStr, timeStr } = formatDateTime(dateValue)
         return (
