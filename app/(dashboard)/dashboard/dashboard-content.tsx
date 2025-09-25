@@ -439,14 +439,14 @@ export function DashboardContent() {
     if (filters.networks && filters.networks.length > 0) {
       fetchData()
     }
-  }, [fetchData, networkKey, dateRangeKey])
+  }, [fetchData, networkKey, dateRangeKey, filters.networks])
 
   // Table data fetching - separate from main dashboard data
   useEffect(() => {
     if (filters.networks && filters.networks.length > 0) {
       fetchTableData()
     }
-  }, [fetchTableData, networkKey, dateRangeKey])
+  }, [fetchTableData, networkKey, dateRangeKey, filters.networks])
 
   // Ensure filter options are loaded when networks are selected (for table filters)
   useEffect(() => {
@@ -456,7 +456,7 @@ export function DashboardContent() {
         fetchData()
       }
     }
-  }, [networkKey, availableOfferNames.length, fetchData])
+  }, [networkKey, availableOfferNames.length, fetchData, filters.networks])
 
   return (
     <main className="container mx-auto px-6 py-8">
