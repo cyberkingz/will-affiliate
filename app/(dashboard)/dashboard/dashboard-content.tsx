@@ -98,6 +98,8 @@ export function DashboardContent() {
   const [availableTableSubIds, setAvailableTableSubIds] = useState<string[]>([])
   const [availableTableSubIds2, setAvailableTableSubIds2] = useState<string[]>([])
   const selectedNetworks = filters.networks
+  const dateRangeKey = `${filters.dateRange.from.getTime()}-${filters.dateRange.to.getTime()}`
+  const networkKey = filters.networks.join('|')
 
   useEffect(() => {
     setDraftFilters(cloneFilterState(filters))
@@ -437,14 +439,14 @@ export function DashboardContent() {
     if (filters.networks && filters.networks.length > 0) {
       fetchData()
     }
-  }, [fetchData, filters.networks])
+  }, [fetchData, networkKey, dateRangeKey])
 
   // Table data fetching - separate from main dashboard data
   useEffect(() => {
     if (filters.networks && filters.networks.length > 0) {
       fetchTableData()
     }
-  }, [fetchTableData, filters.networks])
+  }, [fetchTableData, networkKey, dateRangeKey])
 
   // Ensure filter options are loaded when networks are selected (for table filters)
   useEffect(() => {
@@ -454,7 +456,7 @@ export function DashboardContent() {
         fetchData()
       }
     }
-  }, [filters.networks, availableOfferNames.length, fetchData])
+  }, [networkKey, availableOfferNames.length, fetchData])
 
   return (
     <main className="container mx-auto px-6 py-8">
