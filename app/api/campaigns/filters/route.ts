@@ -16,7 +16,7 @@ export async function GET() {
 
     // Fetch network connections from database
     console.log('📡 [FILTERS] Fetching network connections...')
-    const { data: networkConnections, error: networkError } = await supabase
+    const { data: networkConnections } = await supabase
       .from('network_connections')
       .select('id, name, network_type, affiliate_id, api_key, is_active')
       .eq('is_active', true)
@@ -87,7 +87,7 @@ export async function GET() {
       const campaignsMap = new Map<string, string>()
       
       for (const offer of campaignsWithIds) {
-        if (offer.campaign_id && offer.offer_name) {
+        if (offer.campaign_id && offer.offer_name && typeof offer.offer_name === 'string') {
           campaignsMap.set(String(offer.campaign_id), offer.offer_name)
           offerNamesSet.add(offer.offer_name)
         }

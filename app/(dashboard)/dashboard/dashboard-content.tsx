@@ -441,7 +441,7 @@ export function DashboardContent() {
     if (filters.networks && filters.networks.length > 0) {
       fetchTableData()
     }
-  }, [fetchTableData])
+  }, [fetchTableData, filters.networks])
 
   return (
     <main className="container mx-auto px-6 py-8">

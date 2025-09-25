@@ -15,7 +15,7 @@ export async function GET() {
 
     // Fetch network connections from database only - no external API calls
     console.log('📡 [NETWORKS-LIST] Fetching network connections from database...')
-    const { data: networkConnections, error: networkError } = await supabase
+    const { data: networkConnections } = await supabase
       .from('network_connections')
       .select('id, name, network_type, is_active')
       .eq('is_active', true)
