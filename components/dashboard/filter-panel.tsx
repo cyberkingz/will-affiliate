@@ -58,7 +58,6 @@ interface FilterPanelProps {
   availableSubIds: string[]
   isLoading?: boolean
   onApply: () => void
-  hasPendingChanges: boolean
 }
 
 export function FilterPanel({
@@ -68,8 +67,7 @@ export function FilterPanel({
   availableOffers,
   availableSubIds,
   isLoading = false,
-  onApply,
-  hasPendingChanges
+  onApply
 }: FilterPanelProps) {
   const [isEditMode, setIsEditMode] = useState(false)
   const [networkOffers, setNetworkOffers] = useState<Array<{ id: string; name: string }>>([])
@@ -126,6 +124,9 @@ export function FilterPanel({
     if (template) {
       const dateRange = template.getValue()
       setPendingDateRange(dateRange)
+      // Apply template date range immediately
+      updateFilters({ dateRange: { from: dateRange.from!, to: dateRange.to! } })
+      setTimeout(() => onApply(), 0)
     }
   }
 
@@ -139,6 +140,8 @@ export function FilterPanel({
     if (pendingDateRange?.from && pendingDateRange?.to) {
       updateFilters({ dateRange: { from: pendingDateRange.from, to: pendingDateRange.to } })
       setIsDatePopoverOpen(false)
+      // Auto-apply the date change immediately
+      setTimeout(() => onApply(), 0)
     }
   }
 
@@ -596,14 +599,6 @@ export function FilterPanel({
           </SheetContent>
         </Sheet>
 
-        <Button
-          size="sm"
-          className="h-8 text-xs font-semibold"
-          onClick={onApply}
-          disabled={!hasPendingChanges || isLoading}
-        >
-          Apply Filters
-        </Button>
 
         {activeFiltersCount > 0 && (
           <Button 
