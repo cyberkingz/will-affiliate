@@ -84,9 +84,11 @@ export async function POST(request: NextRequest) {
 
     const api = new AffiliateNetworkAPI(networkAccess.networkConfig)
 
-    // Prepare API parameters
-    const startDateISO = startDate.split('T')[0]
-    const endDateISO = endDate.split('T')[0]
+    // Prepare API parameters with time bounds (consistent with summary endpoint)
+    const startDateOnly = startDate.split('T')[0]
+    const endDateOnly = endDate.split('T')[0]
+    const startDateISO = `${startDateOnly} 00:00:00`
+    const endDateISO = `${endDateOnly} 23:59:59`
     const startAtRow = page > 1 ? (page - 1) * limit + 1 : 1
     
     console.log('📅 [REAL-CLICKS] Date processing:', {

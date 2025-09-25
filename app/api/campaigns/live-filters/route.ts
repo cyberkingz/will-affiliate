@@ -84,9 +84,11 @@ export async function POST(request: NextRequest) {
 
     const api = new AffiliateNetworkAPI(networkAccess.networkConfig)
 
-    // Process dates for API
-    const startDateISO = startDate.split('T')[0]
-    const endDateISO = endDate.split('T')[0]
+    // Process dates for API with time ranges for single day selections
+    const startDateOnly = startDate.split('T')[0]
+    const endDateOnly = endDate.split('T')[0]
+    const startDateISO = startDateOnly === endDateOnly ? `${startDateOnly} 00:00:00` : startDateOnly
+    const endDateISO = startDateOnly === endDateOnly ? `${endDateOnly} 23:59:59` : endDateOnly
 
     console.log('🌐 [LIVE-FILTERS] Fetching live clicks data for filter extraction...')
     
