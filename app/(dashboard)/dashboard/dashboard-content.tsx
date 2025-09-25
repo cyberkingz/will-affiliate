@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { FilterPanel, FilterState } from '@/components/dashboard/filter-panel'
 import { KPICards, KPIData } from '@/components/dashboard/kpi-cards'
 import { TrendsChart, TrendData } from '@/components/dashboard/trends-chart'
@@ -69,15 +69,7 @@ const cloneFilterState = (state: FilterState): FilterState => ({
   subIds: [...state.subIds]
 })
 
-const arraysEqual = (a: string[], b: string[]) =>
-  a.length === b.length && a.every((value, index) => value === b[index])
 
-const areFilterStatesEqual = (a: FilterState, b: FilterState): boolean =>
-  a.dateRange.from.getTime() === b.dateRange.from.getTime() &&
-  a.dateRange.to.getTime() === b.dateRange.to.getTime() &&
-  arraysEqual(a.networks, b.networks) &&
-  arraysEqual(a.offers, b.offers) &&
-  arraysEqual(a.subIds, b.subIds)
 
 export function DashboardContent() {
   useDashboardUser()
@@ -96,6 +88,8 @@ export function DashboardContent() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isTableLoading, setIsTableLoading] = useState(false)
+  const [isNetworkLoading, setIsNetworkLoading] = useState(true)
+  const [networkError, setNetworkError] = useState<string | null>(null)
   // Available filter options
   const [availableNetworks, setAvailableNetworks] = useState<Array<{ id: string; name: string }>>([])
   const [availableOffers, setAvailableOffers] = useState<Array<{ id: string; name: string }>>([])
@@ -110,9 +104,15 @@ export function DashboardContent() {
   }, [filters])
 
 
-  const handleApplyFilters = useCallback(() => {
-    setFilters(cloneFilterState(draftFilters))
-  }, [draftFilters])
+  const handleApplyFilters = useCallback((nextFilters?: FilterState) => {
+    const filtersToApply = nextFilters ?? draftFilters
+    console.log('📝 [DASHBOARD] Applying filters from draft to main')
+    console.log('📝 [DASHBOARD] Current main filters:', filters)
+    console.log('📝 [DASHBOARD] Filters to apply:', filtersToApply)
+    const clonedFilters = cloneFilterState(filtersToApply)
+    console.log('📝 [DASHBOARD] Cloned filters:', clonedFilters)
+    setFilters(clonedFilters)
+  }, [draftFilters, filters])
 
   useEffect(() => {
     if (availableNetworks.length === 0) {
@@ -142,7 +142,8 @@ export function DashboardContent() {
 
   // Separate function to fetch only network options (no API calls to Affluent)
   const fetchNetworkOptions = useCallback(async () => {
-    setIsLoading(true)
+    setIsNetworkLoading(true)
+    setNetworkError(null)
     
     try {
       // Only fetch network connections from database - no external API calls
@@ -151,15 +152,18 @@ export function DashboardContent() {
       if (response.ok) {
         const data = await response.json()
         setAvailableNetworks(data.networks || [])
+        console.log('✅ [FRONTEND] Networks loaded successfully:', data.networks?.length || 0)
       } else {
         console.error('❌ [FRONTEND] Networks API failed:', response.status)
+        setNetworkError(`Failed to load networks (${response.status})`)
         setAvailableNetworks([])
       }
     } catch (error) {
       console.error('❌ [FRONTEND] Error fetching networks:', error)
+      setNetworkError('Unable to connect to the server')
       setAvailableNetworks([])
     } finally {
-      setIsLoading(false)
+      setIsNetworkLoading(false)
     }
   }, [])
 
@@ -182,11 +186,7 @@ export function DashboardContent() {
         console.log('📋 [FRONTEND] Basic filters data received:', filtersData)
         setAvailableNetworks(filtersData.networks)
         
-        // Use the basic filters data for table filters if available
-        if (filtersData.offerNames && filtersData.offerNames.length > 0) {
-          console.log('🎯 [FRONTEND] Setting offer names from basic filters:', filtersData.offerNames.length)
-          setAvailableOfferNames(filtersData.offerNames)
-        }
+        // Note: We'll set table filter options from live data to ensure consistency
         
         if (filtersData.subIds1 && filtersData.subIds1.length > 0) {
           console.log('🎯 [FRONTEND] Setting sub IDs from basic filters:', filtersData.subIds1.length)
@@ -244,7 +244,9 @@ export function DashboardContent() {
         setAvailableOffers(liveFiltersData.campaigns || [])
         setAvailableSubIds(liveFiltersData.subIds || [])
 
+        // Ensure table filters get the same offer data as sidebar filters
         const offerNames = liveFiltersData.offerNames || liveFiltersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
+        console.log('🎯 [FRONTEND] Setting table offer names from live data:', offerNames.length)
         setAvailableOfferNames([...new Set(offerNames)])
 
         const subIds1 = liveFiltersData.subIds1 || liveFiltersData.subIds || []
@@ -260,7 +262,9 @@ export function DashboardContent() {
         if (filtersData) {
           setAvailableOffers(filtersData.campaigns || [])
           setAvailableSubIds(filtersData.subIds || [])
+          // Use the same campaigns data for table filters to ensure consistency
           const offerNames = filtersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
+          console.log('🎯 [FRONTEND] Setting table offer names from basic filters fallback:', offerNames.length)
           setAvailableOfferNames([...new Set(offerNames)])
           setAvailableTableSubIds(filtersData.subIds1 || [])
           setAvailableTableSubIds2(filtersData.subIds2 || [])
@@ -442,6 +446,16 @@ export function DashboardContent() {
     }
   }, [fetchTableData, filters.networks])
 
+  // Ensure filter options are loaded when networks are selected (for table filters)
+  useEffect(() => {
+    if (filters.networks && filters.networks.length > 0) {
+      // Make sure we have filter options for table filters even if main dashboard hasn't loaded
+      if (availableOfferNames.length === 0) {
+        fetchData()
+      }
+    }
+  }, [filters.networks, availableOfferNames.length, fetchData])
+
   return (
     <main className="container mx-auto px-6 py-8">
         <div className="space-y-6">
@@ -462,6 +476,9 @@ export function DashboardContent() {
           {!filters.networks || filters.networks.length === 0 ? (
             <NetworkSelector
               availableNetworks={availableNetworks}
+              isLoading={isNetworkLoading}
+              error={networkError}
+              onRetry={fetchNetworkOptions}
               onNetworksSelected={(networkIds) => {
                 const firstNetwork = networkIds[0]
                 setDraftFilters(prev => ({ ...prev, networks: firstNetwork ? [firstNetwork] : [] }))

@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Network, Check, AlertCircle } from 'lucide-react'
+import { NetworkLoadingSkeleton } from './network-loading-skeleton'
+import { NetworkErrorState } from './network-error-state'
 
 interface NetworkOption {
   id: string
@@ -16,12 +18,18 @@ interface NetworkSelectorProps {
   availableNetworks: NetworkOption[]
   onNetworksSelected: (networkIds: string[]) => void
   allowMultiple?: boolean
+  isLoading?: boolean
+  error?: string | null
+  onRetry?: () => void
 }
 
 export function NetworkSelector({ 
   availableNetworks, 
   onNetworksSelected, 
-  allowMultiple = false 
+  allowMultiple = false,
+  isLoading = false,
+  error = null,
+  onRetry
 }: NetworkSelectorProps) {
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
 
@@ -46,6 +54,17 @@ export function NetworkSelector({
     }
   }
 
+  // Show loading skeleton while networks are being fetched
+  if (isLoading) {
+    return <NetworkLoadingSkeleton />
+  }
+
+  // Show error state if there was an error loading networks
+  if (error && onRetry) {
+    return <NetworkErrorState onRetry={onRetry} isRetrying={isLoading} />
+  }
+
+  // Show "No Networks Available" only when not loading and actually empty
   if (availableNetworks.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -66,7 +85,7 @@ export function NetworkSelector({
 
   return (
     <div className="flex items-center justify-center min-h-[60vh] px-6">
-      <Card className="max-w-2xl w-full bg-neutral-900/50 border-neutral-800">
+      <Card className="max-w-2xl w-full bg-neutral-900/50 border-neutral-800 animate-in fade-in-0 duration-300">
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-neutral-800 rounded-lg flex items-center justify-center">
@@ -82,7 +101,7 @@ export function NetworkSelector({
         </CardHeader>
         
         <CardContent className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-2" role="group" aria-label="Available networks">
             {availableNetworks.map((network) => {
               const isSelected = selectedNetworks.includes(network.id)
               const isActive = network.status === 'active'
@@ -91,7 +110,17 @@ export function NetworkSelector({
                 <div
                   key={network.id}
                   onClick={() => handleNetworkToggle(network.id)}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleNetworkToggle(network.id)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isSelected}
+                  aria-label={`${network.name} network - ${isActive ? 'Active' : 'Setup Required'} ${isSelected ? '(selected)' : ''}`}
+                  className={`p-4 rounded-lg border cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-green-500/50 ${
                     isSelected 
                       ? 'bg-neutral-800/80 border-green-500/50 ring-1 ring-green-500/20' 
                       : 'bg-neutral-900/50 border-neutral-800 hover:bg-neutral-800/50 hover:border-neutral-700'
@@ -126,7 +155,8 @@ export function NetworkSelector({
             <Button 
               onClick={handleContinue}
               disabled={selectedNetworks.length === 0}
-              className="w-full bg-green-500 hover:bg-green-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label={`Continue with ${selectedNetworks.length} selected network${selectedNetworks.length !== 1 ? 's' : ''}`}
+              className="w-full bg-green-500 hover:bg-green-600 text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-500/50"
             >
               {selectedNetworks.length === 0 
                 ? 'Select a Network to Continue' 

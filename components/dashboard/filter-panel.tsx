@@ -57,7 +57,7 @@ interface FilterPanelProps {
   availableOffers: Array<{ id: string; name: string }>
   availableSubIds: string[]
   isLoading?: boolean
-  onApply: () => void
+  onApply: (nextFilters?: FilterState) => void
 }
 
 export function FilterPanel({
@@ -80,8 +80,22 @@ export function FilterPanel({
   
   const templates = getDateTemplates()
 
-  const updateFilters = (updates: Partial<FilterState>) => {
-    onFiltersChange({ ...filters, ...updates })
+  const updateFilters = (updates: Partial<FilterState>): FilterState => {
+    console.log('🔄 [FILTER-PANEL] Updating filters:', updates)
+    console.log('🔄 [FILTER-PANEL] Current filters:', filters)
+    const newFilters: FilterState = {
+      ...filters,
+      ...updates,
+      dateRange: updates.dateRange
+        ? { from: new Date(updates.dateRange.from), to: new Date(updates.dateRange.to) }
+        : { from: new Date(filters.dateRange.from), to: new Date(filters.dateRange.to) },
+      networks: updates.networks !== undefined ? [...updates.networks] : [...filters.networks],
+      offers: updates.offers !== undefined ? [...updates.offers] : [...filters.offers],
+      subIds: updates.subIds !== undefined ? [...updates.subIds] : [...filters.subIds]
+    }
+    console.log('🔄 [FILTER-PANEL] New filters:', newFilters)
+    onFiltersChange(newFilters)
+    return newFilters
   }
 
   const fetchOffersForNetwork = async (networkId: string) => {
@@ -111,22 +125,25 @@ export function FilterPanel({
   }, [filters.networks])
 
   React.useEffect(() => {
-    if (!isDatePopoverOpen) {
+    // Only reset pendingDateRange when popover opens (to sync with current filters)
+    // Don't reset when popover closes to preserve user's selection during apply process
+    if (isDatePopoverOpen) {
       setPendingDateRange({
         from: filters.dateRange.from,
         to: filters.dateRange.to
       })
     }
-  }, [filters.dateRange, isDatePopoverOpen])
+  }, [isDatePopoverOpen, filters.dateRange])
 
   const applyTemplate = (templateId: string) => {
     const template = templates.find(t => t.id === templateId)
     if (template) {
       const dateRange = template.getValue()
+      console.log('📅 [TEMPLATE] Applying date template:', template.label, dateRange)
       setPendingDateRange(dateRange)
       // Apply template date range immediately
-      updateFilters({ dateRange: { from: dateRange.from!, to: dateRange.to! } })
-      setTimeout(() => onApply(), 0)
+      const updatedFilters = updateFilters({ dateRange: { from: dateRange.from!, to: dateRange.to! } })
+      onApply(updatedFilters)
     }
   }
 
@@ -138,10 +155,11 @@ export function FilterPanel({
 
   const applyDateRange = () => {
     if (pendingDateRange?.from && pendingDateRange?.to) {
-      updateFilters({ dateRange: { from: pendingDateRange.from, to: pendingDateRange.to } })
+      console.log('🗓️ [CALENDAR] Applying date range:', pendingDateRange)
+      const updatedFilters = updateFilters({ dateRange: { from: pendingDateRange.from, to: pendingDateRange.to } })
       setIsDatePopoverOpen(false)
       // Auto-apply the date change immediately
-      setTimeout(() => onApply(), 0)
+      onApply(updatedFilters)
     }
   }
 
