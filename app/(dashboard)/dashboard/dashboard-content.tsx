@@ -109,7 +109,6 @@ export function DashboardContent() {
     setDraftFilters(cloneFilterState(filters))
   }, [filters])
 
-  const hasPendingChanges = useMemo(() => !areFilterStatesEqual(filters, draftFilters), [filters, draftFilters])
 
   const handleApplyFilters = useCallback(() => {
     setFilters(cloneFilterState(draftFilters))
@@ -456,7 +455,6 @@ export function DashboardContent() {
               availableSubIds={availableSubIds}
               isLoading={isLoading}
               onApply={handleApplyFilters}
-              hasPendingChanges={hasPendingChanges}
             />
           )}
 
