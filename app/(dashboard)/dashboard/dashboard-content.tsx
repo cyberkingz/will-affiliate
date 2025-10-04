@@ -429,6 +429,13 @@ export function DashboardContent() {
     }
   }, [filters, tableFilters])
 
+  const handleRefresh = useCallback(async () => {
+    console.log('🔄 [DASHBOARD] Refreshing data...')
+    if (filters.networks && filters.networks.length > 0) {
+      await Promise.all([fetchData(), fetchTableData()])
+    }
+  }, [fetchData, fetchTableData, filters.networks])
+
   // Initial load - only fetch network options
   useEffect(() => {
     fetchNetworkOptions()
@@ -471,6 +478,7 @@ export function DashboardContent() {
               availableSubIds={availableSubIds}
               isLoading={isLoading}
               onApply={handleApplyFilters}
+              onRefresh={handleRefresh}
             />
           )}
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { CalendarIcon, Settings2, X, Check } from 'lucide-react'
+import { CalendarIcon, Settings2, X, Check, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -58,6 +58,7 @@ interface FilterPanelProps {
   availableSubIds: string[]
   isLoading?: boolean
   onApply: (nextFilters?: FilterState) => void
+  onRefresh?: () => void
 }
 
 export function FilterPanel({
@@ -67,7 +68,8 @@ export function FilterPanel({
   availableOffers,
   availableSubIds,
   isLoading = false,
-  onApply
+  onApply,
+  onRefresh
 }: FilterPanelProps) {
   const [isEditMode, setIsEditMode] = useState(false)
   const [networkOffers, setNetworkOffers] = useState<Array<{ id: string; name: string }>>([])
@@ -451,6 +453,20 @@ export function FilterPanel({
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
+          {/* Refresh Button */}
+          {onRefresh && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="h-8 text-xs font-normal"
+            >
+              <RefreshCw className={`h-3 w-3 mr-1${isLoading ? ' animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          )}
+
           {/* Edit Filters Button */}
           <Sheet open={isEditMode} onOpenChange={setIsEditMode}>
             <SheetTrigger asChild>
