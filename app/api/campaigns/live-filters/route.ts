@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     console.log('📅 [LIVE-FILTERS] Date range:', { startDate, endDate })
 
-    // Check cache first (5 minute TTL for filter data)
+    // Check cache first (2 minute TTL for filter data - shorter for fresher data)
     const cacheKey = createCacheKey('live-filters', {
       userId: user.id,
       startDate,
@@ -37,14 +37,17 @@ export async function POST(request: NextRequest) {
       networks
     })
 
-    // TEMPORARILY DISABLED: Force fresh fetch to debug Sub ID 2 issue
-    // const cachedData = persistentCache.get<LiveFiltersResponse>(cacheKey)
-    // if (cachedData) {
-    //   console.log('📋 [LIVE-FILTERS] Returning cached filter data')
-    //   console.log('🔍 [CACHE-DEBUG] Cached subIds2:', cachedData.subIds2)
-    //   return NextResponse.json(cachedData)
-    // }
-    console.log('🔄 [LIVE-FILTERS] Cache DISABLED - forcing fresh fetch for debugging')
+    const cachedData = persistentCache.get<LiveFiltersResponse>(cacheKey)
+    if (cachedData) {
+      console.log('📋 [LIVE-FILTERS] Returning cached filter data:', {
+        subIds: cachedData.subIds?.length || 0,
+        subIds2: cachedData.subIds2?.length || 0,
+        offerNames: cachedData.offerNames?.length || 0
+      })
+      return NextResponse.json(cachedData)
+    }
+
+    console.log('🔄 [LIVE-FILTERS] Cache miss - fetching fresh data')
 
     console.log('🔍 [LIVE-FILTERS] Resolving network access...')
     const networkAccess = await resolveNetworkAccess(
@@ -129,16 +132,22 @@ export async function POST(request: NextRequest) {
       })
     ])
 
-    // Merge all conversion responses
+    // Merge all conversion responses - use partial data even if some batches fail
+    const successfulBatches = [conv1, conv2, conv3].filter(batch => batch.success)
+    const failedBatches = [conv1, conv2, conv3].filter(batch => !batch.success)
+
     const conversionsResponse = {
-      success: conv1.success && conv2.success && conv3.success,
+      success: successfulBatches.length > 0, // Success if at least one batch succeeded
       data: [
         ...(conv1.data || []),
         ...(conv2.data || []),
         ...(conv3.data || [])
       ],
       row_count: conv1.row_count || 0,
-      message: conv1.message
+      message: failedBatches.length > 0
+        ? `⚠️ ${failedBatches.length}/${3} batches failed, using ${successfulBatches.length} successful batches`
+        : conv1.message,
+      partialData: failedBatches.length > 0
     }
 
     console.log('📥 [LIVE-FILTERS] Responses received:', {
@@ -149,12 +158,22 @@ export async function POST(request: NextRequest) {
       conversions: {
         success: conversionsResponse.success,
         total_data_length: conversionsResponse.data?.length || 0,
+        batch1_success: conv1.success,
         batch1_length: conv1.data?.length || 0,
+        batch2_success: conv2.success,
         batch2_length: conv2.data?.length || 0,
+        batch3_success: conv3.success,
         batch3_length: conv3.data?.length || 0,
-        sampling_strategy: 'SEQUENTIAL: rows 1-200, 201-400, 401-600 (NO GAPS)'
+        successful_batches: successfulBatches.length,
+        failed_batches: failedBatches.length,
+        sampling_strategy: 'SEQUENTIAL: rows 1-200, 201-400, 401-600 (NO GAPS)',
+        partial_data: conversionsResponse.partialData
       }
     })
+
+    if (failedBatches.length > 0) {
+      console.warn(`⚠️ [LIVE-FILTERS] Using partial data - ${failedBatches.length} batch(es) failed but continuing with ${successfulBatches.length} successful batch(es)`)
+    }
 
     // DEBUG: Sub ID 2 extraction details
     const batch1SubIds2 = new Set(conv1.data?.map(c => c.subid_2).filter(Boolean) || [])
@@ -257,9 +276,9 @@ export async function POST(request: NextRequest) {
       sampleOfferNames: response.offerNames.slice(0, 3)
     })
 
-    // Cache the response for 30 minutes (filter options don't change frequently)
-    // Longer cache since we're fetching 500+ records (expensive operation)
-    persistentCache.set(cacheKey, response, 30)
+    // Cache the response for 2 minutes (balance between performance and data freshness)
+    // Shorter TTL ensures new Sub IDs appear quickly
+    persistentCache.set(cacheKey, response, 2)
 
     return NextResponse.json(response)
   } catch (error) {

@@ -1,22 +1,36 @@
 // Persistent API Cache with localStorage fallback
 // This cache survives page refreshes, dramatically improving UX
 
+// Cache version - increment this to invalidate all old caches
+const CACHE_VERSION = 'v2' // Updated to fix Sub ID 2 issue
+
 interface CacheEntry<T> {
   data: T
   timestamp: number
   ttl: number
+  version: string
 }
 
 class PersistentAPICache {
   private memoryCache = new Map<string, CacheEntry<unknown>>()
   private storagePrefix = 'api_cache_'
+  private version = CACHE_VERSION
 
   get<T>(key: string): T | null {
     // Try memory first (fastest - ~1ms)
     const memCached = this.memoryCache.get(key)
-    if (memCached && Date.now() - memCached.timestamp <= memCached.ttl) {
-      console.log(`💾 [CACHE] Memory hit: ${key}`)
-      return memCached.data as T
+    if (memCached) {
+      // Check version mismatch
+      if (memCached.version !== this.version) {
+        this.memoryCache.delete(key)
+        console.log(`🗑️ [CACHE] Version mismatch in memory: ${key}`)
+        return null
+      }
+      // Check if expired
+      if (Date.now() - memCached.timestamp <= memCached.ttl) {
+        console.log(`💾 [CACHE] Memory hit: ${key}`)
+        return memCached.data as T
+      }
     }
 
     // Try localStorage (persists across refreshes - ~5ms)
@@ -27,7 +41,15 @@ class PersistentAPICache {
       const cached = localStorage.getItem(storageKey)
       if (!cached) return null
 
-      const { data, timestamp, ttl } = JSON.parse(cached)
+      const { data, timestamp, ttl, version } = JSON.parse(cached)
+
+      // Check version mismatch (invalidate old caches)
+      if (version !== this.version) {
+        localStorage.removeItem(storageKey)
+        this.memoryCache.delete(key)
+        console.log(`🗑️ [CACHE] Version mismatch and removed: ${key}`)
+        return null
+      }
 
       // Check if expired
       if (Date.now() - timestamp > ttl) {
@@ -38,7 +60,7 @@ class PersistentAPICache {
       }
 
       // Restore to memory cache for faster subsequent access
-      this.memoryCache.set(key, { data, timestamp, ttl })
+      this.memoryCache.set(key, { data, timestamp, ttl, version })
       console.log(`💾 [CACHE] localStorage hit: ${key}`)
       return data as T
     } catch (error) {
@@ -49,7 +71,7 @@ class PersistentAPICache {
 
   set<T>(key: string, data: T, ttlMinutes: number = 5): void {
     const ttl = ttlMinutes * 60 * 1000
-    const entry = { data, timestamp: Date.now(), ttl }
+    const entry = { data, timestamp: Date.now(), ttl, version: this.version }
 
     // Set in memory (always succeeds)
     this.memoryCache.set(key, entry)
@@ -103,11 +125,13 @@ class PersistentAPICache {
   // Clean up expired entries from both memory and localStorage
   cleanup(): void {
     const now = Date.now()
+    let removed = 0
 
     // Clean memory cache
     for (const [key, cached] of this.memoryCache.entries()) {
-      if (now - cached.timestamp > cached.ttl) {
+      if (cached.version !== this.version || now - cached.timestamp > cached.ttl) {
         this.memoryCache.delete(key)
+        removed++
       }
     }
 
@@ -118,18 +142,24 @@ class PersistentAPICache {
         if (key.startsWith(this.storagePrefix)) {
           try {
             const cached = JSON.parse(localStorage.getItem(key) || '{}')
-            if (cached.timestamp && now - cached.timestamp > cached.ttl) {
+            // Remove if wrong version or expired
+            if (!cached.version || cached.version !== this.version ||
+                (cached.timestamp && now - cached.timestamp > cached.ttl)) {
               localStorage.removeItem(key)
+              removed++
             }
           } catch {
             // Remove corrupted entries
             localStorage.removeItem(key)
+            removed++
           }
         }
       })
     }
 
-    console.log(`🧹 [CACHE] Cleanup completed`)
+    if (removed > 0) {
+      console.log(`🧹 [CACHE] Cleanup completed - removed ${removed} entries`)
+    }
   }
 
   // Remove oldest entries to free up space

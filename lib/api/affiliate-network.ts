@@ -210,7 +210,7 @@ export class AffiliateNetworkAPI {
           'Accept': 'application/json',
           'User-Agent': 'WillAffiliate-Dashboard/1.0'
         },
-        signal: AbortSignal.timeout(60000) // 60 second timeout for large datasets
+        signal: AbortSignal.timeout(120000) // 120 second timeout for large datasets (conversions can be very slow)
       })
 
       console.log('📥 [API] Response status:', response.status, response.statusText)
