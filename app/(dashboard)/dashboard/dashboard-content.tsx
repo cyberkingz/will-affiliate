@@ -354,7 +354,8 @@ export function DashboardContent() {
     if (filters.networks && filters.networks.length > 0) {
       fetchData()
     }
-  }, [fetchData, networkKey, dateRangeKey, filters.networks, tableFilters])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchData, networkKey, dateRangeKey, filters.networks, tableFilters.offerName, tableFilters.subId, tableFilters.subId2])
 
   return (
     <main className="container mx-auto px-6 py-8">
