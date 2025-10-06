@@ -141,11 +141,9 @@ export function FilterPanel({
     const template = templates.find(t => t.id === templateId)
     if (template) {
       const dateRange = template.getValue()
-      console.log('📅 [TEMPLATE] Applying date template:', template.label, dateRange)
+      console.log('📅 [TEMPLATE] Selected date template:', template.label, dateRange)
+      // Only update pending date range - user must click Apply to submit
       setPendingDateRange(dateRange)
-      // Apply template date range immediately
-      const updatedFilters = updateFilters({ dateRange: { from: dateRange.from!, to: dateRange.to! } })
-      onApply(updatedFilters)
     }
   }
 

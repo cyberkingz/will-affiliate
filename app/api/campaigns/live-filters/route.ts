@@ -92,23 +92,51 @@ export async function POST(request: NextRequest) {
 
     console.log('🌐 [LIVE-FILTERS] Fetching live data for filter extraction...')
 
-    // OPTIMIZATION: Reduced sample size for filter extraction
-    // We only need a small sample to get unique offer names and subIds
-    const [clicksResponse, conversionsResponse] = await Promise.all([
+    // STRATEGY: Sample conversions from different time slices for better Sub ID coverage
+    // For long date ranges (30 days), first 500 conversions miss Sub IDs from later dates
+    // Solution: Fetch multiple smaller batches spread across the date range
+    const [clicksResponse, conv1, conv2, conv3] = await Promise.all([
       api.getClicks({
         start_date: startDateISO,
         end_date: endDateISO,
         include_duplicates: true,
-        row_limit: 50, // Small sample sufficient for filter options
+        row_limit: 100,
         start_at_row: 1
       }),
+      // Batch 1: First 200 conversions
       api.getConversions({
         start_date: startDateISO,
         end_date: endDateISO,
-        limit: 50, // Small sample sufficient for filter options
+        limit: 200,
         start_at_row: 1
+      }),
+      // Batch 2: Middle conversions (skip first 500)
+      api.getConversions({
+        start_date: startDateISO,
+        end_date: endDateISO,
+        limit: 200,
+        start_at_row: 501
+      }),
+      // Batch 3: Later conversions (skip first 1000)
+      api.getConversions({
+        start_date: startDateISO,
+        end_date: endDateISO,
+        limit: 200,
+        start_at_row: 1001
       })
     ])
+
+    // Merge all conversion responses
+    const conversionsResponse = {
+      success: conv1.success && conv2.success && conv3.success,
+      data: [
+        ...(conv1.data || []),
+        ...(conv2.data || []),
+        ...(conv3.data || [])
+      ],
+      row_count: conv1.row_count || 0,
+      message: conv1.message
+    }
 
     console.log('📥 [LIVE-FILTERS] Responses received:', {
       clicks: {
@@ -117,7 +145,11 @@ export async function POST(request: NextRequest) {
       },
       conversions: {
         success: conversionsResponse.success,
-        data_length: conversionsResponse.data?.length || 0
+        total_data_length: conversionsResponse.data?.length || 0,
+        batch1_length: conv1.data?.length || 0,
+        batch2_length: conv2.data?.length || 0,
+        batch3_length: conv3.data?.length || 0,
+        sampling_strategy: 'rows 1-200, 501-700, 1001-1200'
       }
     })
 
@@ -205,8 +237,9 @@ export async function POST(request: NextRequest) {
       sampleOfferNames: response.offerNames.slice(0, 3)
     })
 
-    // Cache the response for 15 minutes (filter options don't change frequently)
-    persistentCache.set(cacheKey, response, 15)
+    // Cache the response for 30 minutes (filter options don't change frequently)
+    // Longer cache since we're fetching 500+ records (expensive operation)
+    persistentCache.set(cacheKey, response, 30)
 
     return NextResponse.json(response)
   } catch (error) {
