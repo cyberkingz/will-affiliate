@@ -177,155 +177,37 @@ export function DashboardContent() {
     }
 
     setIsLoading(true)
+    setIsTableLoading(true)
+
+    const startTime = performance.now()
+    console.log('⏱️ [PERFORMANCE] Starting dashboard data fetch...')
 
     try {
-      // First, fetch basic filters from the filters endpoint
-      const filtersResponse = await fetch('/api/campaigns/filters')
-      let filtersData: FiltersApiResponse | null = null
-
-      if (filtersResponse.ok) {
-        filtersData = await filtersResponse.json() as FiltersApiResponse
-        console.log('📋 [FRONTEND] Basic filters data received:', filtersData)
-        setAvailableNetworks(filtersData.networks)
-        
-        // Note: We'll set table filter options from live data to ensure consistency
-        
-        if (filtersData.subIds1 && filtersData.subIds1.length > 0) {
-          console.log('🎯 [FRONTEND] Setting sub IDs from basic filters:', filtersData.subIds1.length)
-          setAvailableTableSubIds(filtersData.subIds1)
-        }
-        
-        if (filtersData.subIds2 && filtersData.subIds2.length > 0) {
-          console.log('🎯 [FRONTEND] Setting sub IDs 2 from basic filters:', filtersData.subIds2.length)
-          setAvailableTableSubIds2(filtersData.subIds2)
-        }
-        
-        // Also set the main filter options
-        if (filtersData.campaigns && filtersData.campaigns.length > 0) {
-          setAvailableOffers(filtersData.campaigns)
-        }
-        
-        if (filtersData.subIds && filtersData.subIds.length > 0) {
-          setAvailableSubIds(filtersData.subIds)
-        }
-      } else {
-        console.error('❌ [FRONTEND] Basic filters API failed:', filtersResponse.status)
-        setAvailableNetworks([])
-      }
-
-      // Then, fetch live filter options based on actual data
       const formattedStartDate = formatDateForAPI(filters.dateRange.from)
       const formattedEndDate = formatDateForAPI(filters.dateRange.to)
 
-      console.log('🔍 [FRONTEND] About to call live-filters API with:', {
-        startDate: formattedStartDate,
-        endDate: formattedEndDate,
-        networks: filters.networks
-      })
-
-      const liveFiltersResponse = await fetch('/api/campaigns/live-filters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: formattedStartDate,
-          endDate: formattedEndDate,
-          networks: filters.networks
-        })
-      })
-
-      console.log('📡 [FRONTEND] Live filters response status:', liveFiltersResponse.status)
-
-      if (liveFiltersResponse.ok) {
-        const liveFiltersData = await liveFiltersResponse.json() as FiltersApiResponse
-        console.log('📋 [FRONTEND] Live filters data received:', liveFiltersData)
-        console.log('🎯 [FRONTEND] Live available offers:', liveFiltersData.campaigns)
-        console.log('🔍 [FRONTEND] Live Sub IDs:', liveFiltersData.subIds1?.slice(0, 10))
-        console.log('🔍 [FRONTEND] Live Sub IDs 2:', liveFiltersData.subIds2?.slice(0, 10))
-
-        // Use live data for offers and sub IDs
-        setAvailableOffers(liveFiltersData.campaigns || [])
-        setAvailableSubIds(liveFiltersData.subIds || [])
-
-        // Ensure table filters get the same offer data as sidebar filters
-        const offerNames = liveFiltersData.offerNames || liveFiltersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
-        console.log('🎯 [FRONTEND] Setting table offer names from live data:', offerNames.length)
-        setAvailableOfferNames([...new Set(offerNames)])
-
-        const subIds1 = liveFiltersData.subIds1 || liveFiltersData.subIds || []
-        const subIds2 = liveFiltersData.subIds2 || []
-        console.log('🎯 [FRONTEND] Setting table sub IDs:', { subIds1Length: subIds1.length, subIds2Length: subIds2.length })
-        console.log('🎯 [FRONTEND] Sample table sub IDs 1:', subIds1.slice(0, 5))
-        console.log('🎯 [FRONTEND] Sample table sub IDs 2:', subIds2.slice(0, 5))
-        setAvailableTableSubIds(subIds1)
-        setAvailableTableSubIds2(subIds2)
-      } else {
-        console.error('❌ [FRONTEND] Live filters API failed:', liveFiltersResponse.status)
-        // Fallback to basic filters data if available
-        if (filtersData) {
-          setAvailableOffers(filtersData.campaigns || [])
-          setAvailableSubIds(filtersData.subIds || [])
-          // Use the same campaigns data for table filters to ensure consistency
-          const offerNames = filtersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
-          console.log('🎯 [FRONTEND] Setting table offer names from basic filters fallback:', offerNames.length)
-          setAvailableOfferNames([...new Set(offerNames)])
-          setAvailableTableSubIds(filtersData.subIds1 || [])
-          setAvailableTableSubIds2(filtersData.subIds2 || [])
-        } else {
-          setAvailableOffers([])
-          setAvailableSubIds([])
-          setAvailableOfferNames([])
-          setAvailableTableSubIds([])
-          setAvailableTableSubIds2([])
-        }
-      }
-
-      let effectiveNetworks = filters.networks
-
-      if (Array.isArray(filtersData?.networks)) {
-        const accessibleNetworkIds = new Set(
-          filtersData.networks.map((network: { id: string }) => network.id)
-        )
-
-        const filteredNetworks = filters.networks
-          .filter(id => accessibleNetworkIds.has(id))
-          .slice(0, 1)
-
-      if (filteredNetworks.length !== filters.networks.length) {
-        setFilters(prev => ({ ...prev, networks: filteredNetworks }))
-      }
-
-      effectiveNetworks = filteredNetworks
-      }
-
-      if (effectiveNetworks.length > 1) {
-        effectiveNetworks = effectiveNetworks.slice(0, 1)
-        setFilters(prev => ({ ...prev, networks: effectiveNetworks }))
-      }
-
-      if (!effectiveNetworks || effectiveNetworks.length === 0) {
-        setKpiData(createDefaultKpiData())
-        setTrendData([])
-        setClicksData([])
-        setConversionsData([])
-        return
-      }
-
-      console.log('📅 [FRONTEND] Date debugging:', {
-        originalFrom: filters.dateRange.from.toString(),
-        originalTo: filters.dateRange.to.toString(),
-        formattedStartDate,
-        formattedEndDate,
-        currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      })
-
+      // Prepare request bodies
       const requestBody = {
         startDate: formattedStartDate,
         endDate: formattedEndDate,
-        networks: effectiveNetworks,
+        networks: filters.networks,
         offers: filters.offers,
         subIds: filters.subIds
       }
 
+      const tableRequestBody = {
+        ...requestBody,
+        tableFilters: tableFilters,
+        page: 1,
+        limit: 50
+      }
+
+      console.log('🚀 [PERFORMANCE] Launching parallel API requests...')
+
+      // CRITICAL OPTIMIZATION: Load graph data FIRST (fast), then load tables (slow)
+      // This allows users to see KPIs immediately while tables load in background
+
+      // Phase 1: Load critical data for KPI graph (fast - ~7s)
       const [summaryResponse] = await Promise.allSettled([
         fetch('/api/campaigns/summary', {
           method: 'POST',
@@ -334,136 +216,144 @@ export function DashboardContent() {
         })
       ])
 
-      if (summaryResponse.status === 'fulfilled') {
-        if (summaryResponse.value.ok) {
-          const summaryData = await summaryResponse.value.json()
-          setKpiData(summaryData.kpis)
-          setTrendData(summaryData.trends)
-        } else {
-          console.error('❌ [DASHBOARD] Summary API failed:', summaryResponse.value.status)
-        }
+      // Process summary response - THIS SHOWS THE GRAPH IMMEDIATELY
+      if (summaryResponse.status === 'fulfilled' && summaryResponse.value.ok) {
+        const summaryData = await summaryResponse.value.json()
+        setKpiData(summaryData.kpis)
+        setTrendData(summaryData.trends)
+        console.log('📊 [FRONTEND] Summary data loaded - GRAPH NOW VISIBLE')
+
+        // Stop main loading indicator - graph is ready!
+        setIsLoading(false)
       } else {
-        console.error('❌ [DASHBOARD] Summary API promise rejected:', summaryResponse.reason)
+        console.error('❌ [DASHBOARD] Summary API failed:',
+          summaryResponse.status === 'fulfilled' ? summaryResponse.value.status : summaryResponse.reason)
+        setIsLoading(false)
       }
 
-      // Table data will be fetched separately
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [filters])
+      // Phase 2: Load table data in background (slow - 45-60s)
+      console.log('🔄 [PERFORMANCE] Loading table data in background...')
+      const [clicksResponse, conversionsResponse, liveFiltersResponse] =
+        await Promise.allSettled([
+          fetch('/api/campaigns/real-clicks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(tableRequestBody)
+          }),
+          fetch('/api/campaigns/real-conversions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(tableRequestBody)
+          }),
+          fetch('/api/campaigns/live-filters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              startDate: formattedStartDate,
+              endDate: formattedEndDate,
+              networks: filters.networks
+            })
+          })
+        ])
 
-  // Separate function for table data that doesn't affect main dashboard
-  const fetchTableData = useCallback(async () => {
-    // Don't fetch table data if no networks are selected
-    if (!filters.networks || filters.networks.length === 0) {
-      console.log('🚫 [TABLE-DATA] Skipping table data fetch - no networks selected')
-      setClicksData([])
-      setConversionsData([])
-      return
-    }
+      console.log('✅ [PERFORMANCE] Background table data loaded')
 
-    setIsTableLoading(true)
-
-    try {
-      const formattedStartDate = formatDateForAPI(filters.dateRange.from)
-      const formattedEndDate = formatDateForAPI(filters.dateRange.to)
-
-      const tableRequestBody = {
-        startDate: formattedStartDate,
-        endDate: formattedEndDate,
-        networks: filters.networks,
-        campaigns: filters.offers,
-        tableFilters: tableFilters,
-        page: 1,
-        limit: 50
-      }
-
-      console.log('📊 [TABLE-DATA] Fetching table data with filters:', tableFilters)
-
-      const [clicksResponse, conversionsResponse] = await Promise.allSettled([
-        fetch('/api/campaigns/real-clicks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(tableRequestBody)
-        }),
-        fetch('/api/campaigns/real-conversions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(tableRequestBody)
-        })
-      ])
-
-      if (clicksResponse.status === 'fulfilled') {
-        if (clicksResponse.value.ok) {
-          const clicksResponseData = await clicksResponse.value.json()
-          console.log('📊 [TABLE-DATA] Clicks response:', clicksResponseData)
-          setClicksData(clicksResponseData.clicks || [])
-        } else {
-          console.error('❌ [TABLE-DATA] Clicks API failed:', clicksResponse.value.status)
-          setClicksData([])
-        }
+      // Process clicks response
+      if (clicksResponse.status === 'fulfilled' && clicksResponse.value.ok) {
+        const clicksData = await clicksResponse.value.json()
+        setClicksData(clicksData.clicks || [])
+        console.log('📊 [FRONTEND] Clicks data loaded:', clicksData.clicks?.length || 0)
       } else {
-        console.error('❌ [TABLE-DATA] Clicks API promise rejected:', clicksResponse.reason)
+        console.error('❌ [DASHBOARD] Clicks API failed:',
+          clicksResponse.status === 'fulfilled' ? clicksResponse.value.status : clicksResponse.reason)
         setClicksData([])
       }
 
-      if (conversionsResponse.status === 'fulfilled') {
-        if (conversionsResponse.value.ok) {
-          const conversionsResponseData = await conversionsResponse.value.json()
-          console.log('📊 [TABLE-DATA] Conversions response:', conversionsResponseData)
-          setConversionsData(conversionsResponseData.conversions || [])
-        } else {
-          console.error('❌ [TABLE-DATA] Conversions API failed:', conversionsResponse.value.status)
-          setConversionsData([])
-        }
+      // Process conversions response
+      if (conversionsResponse.status === 'fulfilled' && conversionsResponse.value.ok) {
+        const conversionsData = await conversionsResponse.value.json()
+        setConversionsData(conversionsData.conversions || [])
+        console.log('📊 [FRONTEND] Conversions data loaded:', conversionsData.conversions?.length || 0)
       } else {
-        console.error('❌ [TABLE-DATA] Conversions API promise rejected:', conversionsResponse.reason)
+        console.error('❌ [DASHBOARD] Conversions API failed:',
+          conversionsResponse.status === 'fulfilled' ? conversionsResponse.value.status : conversionsResponse.reason)
         setConversionsData([])
       }
+
+      // Process live filters response
+      if (liveFiltersResponse.status === 'fulfilled' && liveFiltersResponse.value.ok) {
+        const liveFiltersData = await liveFiltersResponse.value.json() as FiltersApiResponse
+        console.log('📋 [FRONTEND] Live filters data received')
+
+        // Set all filter options from live data
+        setAvailableNetworks(liveFiltersData.networks || [])
+        setAvailableOffers(liveFiltersData.campaigns || [])
+        setAvailableSubIds(liveFiltersData.subIds || [])
+
+        // Set table filter options
+        const offerNames = liveFiltersData.offerNames ||
+          liveFiltersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
+        setAvailableOfferNames([...new Set(offerNames)])
+        setAvailableTableSubIds(liveFiltersData.subIds1 || liveFiltersData.subIds || [])
+        setAvailableTableSubIds2(liveFiltersData.subIds2 || [])
+
+        console.log('🎯 [FRONTEND] Filter options loaded:', {
+          offers: liveFiltersData.campaigns?.length || 0,
+          subIds: liveFiltersData.subIds?.length || 0,
+          subIds2: liveFiltersData.subIds2?.length || 0
+        })
+      } else {
+        console.error('❌ [FRONTEND] Live filters API failed:',
+          liveFiltersResponse.status === 'fulfilled' ? liveFiltersResponse.value.status : liveFiltersResponse.reason)
+
+        // Set empty filter options on failure
+        setAvailableOffers([])
+        setAvailableSubIds([])
+        setAvailableOfferNames([])
+        setAvailableTableSubIds([])
+        setAvailableTableSubIds2([])
+      }
+
     } catch (error) {
-      console.error('❌ [TABLE-DATA] Error fetching table data:', error)
-    } finally {
+      console.error('❌ [DASHBOARD] Error fetching dashboard data:', error)
+      setIsLoading(false)
       setIsTableLoading(false)
+    } finally {
+      // Table loading done
+      setIsTableLoading(false)
+
+      const loadTime = performance.now() - startTime
+      console.log(`⏱️ [PERFORMANCE] Dashboard loaded in ${(loadTime / 1000).toFixed(2)}s`)
+
+      // Send performance metric to analytics if available
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'dashboard_load', {
+          load_time_ms: Math.round(loadTime),
+          network_count: filters.networks.length,
+          date_range_days: Math.ceil((filters.dateRange.to.getTime() - filters.dateRange.from.getTime()) / 86400000)
+        })
+      }
     }
   }, [filters, tableFilters])
 
   const handleRefresh = useCallback(async () => {
     console.log('🔄 [DASHBOARD] Refreshing data...')
     if (filters.networks && filters.networks.length > 0) {
-      await Promise.all([fetchData(), fetchTableData()])
+      await fetchData()
     }
-  }, [fetchData, fetchTableData, filters.networks])
+  }, [fetchData, filters.networks])
 
   // Initial load - only fetch network options
   useEffect(() => {
     fetchNetworkOptions()
   }, [fetchNetworkOptions])
 
-  // Data fetching - only when filters change and networks are selected
+  // Data fetching - only when filters or tableFilters change and networks are selected
   useEffect(() => {
     if (filters.networks && filters.networks.length > 0) {
       fetchData()
     }
-  }, [fetchData, networkKey, dateRangeKey, filters.networks])
-
-  // Table data fetching - separate from main dashboard data
-  useEffect(() => {
-    if (filters.networks && filters.networks.length > 0) {
-      fetchTableData()
-    }
-  }, [fetchTableData, networkKey, dateRangeKey, filters.networks])
-
-  // Ensure filter options are loaded when networks are selected (for table filters)
-  useEffect(() => {
-    if (filters.networks && filters.networks.length > 0) {
-      // Make sure we have filter options for table filters even if main dashboard hasn't loaded
-      if (availableOfferNames.length === 0) {
-        fetchData()
-      }
-    }
-  }, [networkKey, availableOfferNames.length, fetchData, filters.networks])
+  }, [fetchData, networkKey, dateRangeKey, filters.networks, tableFilters])
 
   return (
     <main className="container mx-auto px-6 py-8">

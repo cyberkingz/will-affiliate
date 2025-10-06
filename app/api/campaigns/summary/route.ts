@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
+import { persistentCache, createCacheKey } from '@/lib/cache/persistent-api-cache'
 import { AffiliateNetworkAPI, DailySummaryRow, HourlySummaryData, AffluentRecord } from '@/lib/api/affiliate-network'
 import { resolveNetworkAccess } from '@/lib/server/network-access'
 
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       subIds 
     })
     
-    const cachedData = apiCache.get(cacheKey)
+    const cachedData = persistentCache.get(cacheKey)
     if (cachedData) {
       console.log('✅ [SUMMARY] Returning cached data')
       return NextResponse.json(cachedData)
@@ -180,7 +180,8 @@ export async function POST(request: NextRequest) {
     // Fetch Daily Summary data - this matches exactly what the Affluent dashboard shows
     console.log('📊 [SUMMARY] Fetching daily summary data...')
     let dailySummarySuccess = false
-    
+    let dailySummaryData: DailySummaryRow[] = [] // Store for reuse in trends
+
     try {
       const dailySummaryResponse = await api.getDailySummary({
         start_date: apiStartDate,
@@ -194,6 +195,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (dailySummaryResponse.success && dailySummaryResponse.data && dailySummaryResponse.data.length > 0) {
+        dailySummaryData = dailySummaryResponse.data // Store for reuse
         console.log('✅ [SUMMARY] Daily summary data received:', dailySummaryResponse.data.length, 'days')
         
         // Debug: Log first day structure
@@ -371,37 +373,31 @@ export async function POST(request: NextRequest) {
       console.log('🔍 [SUMMARY] Sample trends:', trends.slice(0, 5))
     } else {
       // Multiple days: Use daily granularity from Daily Summary API
-      console.log('📈 [SUMMARY] Using daily granularity from Daily Summary API')
-      
-      try {
-        const dailySummaryResponse = await api.getDailySummary({
-          start_date: apiStartDate,
-          end_date: apiEndDate
+      console.log('📈 [SUMMARY] Using daily granularity (reusing previously fetched data)')
+
+      // OPTIMIZATION: Reuse the dailySummaryData we already fetched above
+      // This eliminates a duplicate API call that was taking 5-8 seconds
+      if (dailySummaryData.length > 0) {
+        console.log('📊 [SUMMARY] Processing', dailySummaryData.length, 'days from cached Daily Summary')
+
+        // Simple: just use the API data as-is
+        dailySummaryData.forEach(dayData => {
+          const dayKey = getDailyKey(dayData)
+          const revenue = Number(toNumber(dayData.revenue).toFixed(2))
+          trends.push({
+            hour: dayKey,
+            time: dayKey,
+            clicks: toNumber(dayData.clicks),
+            revenue,
+            conversions: toNumber(dayData.conversions),
+            spend: 0
+          })
         })
 
-        if (dailySummaryResponse.success && dailySummaryResponse.data) {
-          console.log('📊 [SUMMARY] Processing', dailySummaryResponse.data.length, 'days from Daily Summary')
-          
-          // Simple: just use the API data as-is
-          dailySummaryResponse.data.forEach(dayData => {
-            const dayKey = getDailyKey(dayData)
-            const revenue = Number(toNumber(dayData.revenue).toFixed(2))
-            trends.push({
-              hour: dayKey,
-              time: dayKey,
-              clicks: toNumber(dayData.clicks),
-              revenue,
-              conversions: toNumber(dayData.conversions),
-              spend: 0
-            })
-          })
-          
-          console.log('📊 [SUMMARY] Daily trends generated:', trends.length, 'days')
-        }
-      } catch (error) {
-        console.warn('⚠️ [SUMMARY] Daily Summary API failed for trends, generating empty data:', getErrorMessage(error))
-        
-        // Fallback: Generate empty trends for the date range
+        console.log('📊 [SUMMARY] Daily trends generated:', trends.length, 'days')
+      } else {
+        // Fallback: Generate empty trends for the date range if data wasn't available
+        console.warn('⚠️ [SUMMARY] No daily summary data available, generating empty trends')
         for (let d = new Date(startDateObj); d <= endDateObj; d.setDate(d.getDate() + 1)) {
           const dayKey = d.toISOString().split('T')[0]
           trends.push({
@@ -440,7 +436,7 @@ export async function POST(request: NextRequest) {
     })
     
     // Cache the response for 5 minutes (real data changes frequently)
-    apiCache.set(cacheKey, responseData, 5)
+    persistentCache.set(cacheKey, responseData, 5)
 
     return NextResponse.json(responseData)
   } catch (error) {

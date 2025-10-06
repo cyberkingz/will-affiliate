@@ -27,11 +27,11 @@ interface RealClicksRequestBody {
   page?: number
   limit?: number
 }
-import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
+import { persistentCache, createCacheKey } from '@/lib/cache/persistent-api-cache'
 import { resolveNetworkAccess } from '@/lib/server/network-access'
 
 // Temporary: Clear cache to ensure fresh data with new date field format
-apiCache.clear()
+// persistentCache.clear()
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       limit
     })
     
-    const cachedData = apiCache.get<ClicksApiResponse>(cacheKey)
+    const cachedData = persistentCache.get<ClicksApiResponse>(cacheKey)
     if (cachedData) {
       return NextResponse.json(cachedData)
     }
@@ -207,8 +207,8 @@ export async function POST(request: NextRequest) {
       hasNextPage: filteredClicks.length === limit
     }
     
-    // Cache the response for 2 minutes
-    apiCache.set(cacheKey, responseData, 2)
+    // Cache the response for 15 minutes (clicks don't change frequently)
+    persistentCache.set(cacheKey, responseData, 15)
 
     return NextResponse.json(responseData)
   } catch (error) {

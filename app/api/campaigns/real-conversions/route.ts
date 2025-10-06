@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { AffiliateNetworkAPI, AffluentConversionData } from '@/lib/api/affiliate-network'
-import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
+import { persistentCache, createCacheKey } from '@/lib/cache/persistent-api-cache'
 import { resolveNetworkAccess } from '@/lib/server/network-access'
 
-// Temporary: Clear cache to ensure fresh data with new date field format  
-apiCache.clear()
+// Temporary: Clear cache to ensure fresh data with new date field format
+// persistentCache.clear()
 
 type ConversionRecord = AffluentConversionData & Record<string, unknown>
 
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       limit
     })
     
-    const cachedData = apiCache.get<ConversionsApiResponse>(cacheKey)
+    const cachedData = persistentCache.get<ConversionsApiResponse>(cacheKey)
     if (cachedData) {
       return NextResponse.json(cachedData)
     }
@@ -267,8 +267,8 @@ export async function POST(request: NextRequest) {
       hasNextPage: filteredConversions.length === limit
     }
     
-    // Cache the response for 2 minutes
-    apiCache.set(cacheKey, responseData, 2)
+    // Cache the response for 15 minutes (conversions don't change frequently)
+    persistentCache.set(cacheKey, responseData, 15)
 
     return NextResponse.json(responseData)
   } catch (error) {

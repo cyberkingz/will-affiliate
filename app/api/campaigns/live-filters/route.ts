@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { AffiliateNetworkAPI } from '@/lib/api/affiliate-network'
 import { resolveNetworkAccess } from '@/lib/server/network-access'
-import { apiCache, createCacheKey } from '@/lib/cache/api-cache'
+import { persistentCache, createCacheKey } from '@/lib/cache/persistent-api-cache'
 
 interface LiveFiltersResponse {
   networks: Array<{ id: string; name: string; status?: string }>
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       networks 
     })
     
-    const cachedData = apiCache.get<LiveFiltersResponse>(cacheKey)
+    const cachedData = persistentCache.get<LiveFiltersResponse>(cacheKey)
     if (cachedData) {
       console.log('📋 [LIVE-FILTERS] Returning cached filter data')
       return NextResponse.json(cachedData)
@@ -90,34 +90,35 @@ export async function POST(request: NextRequest) {
     const startDateISO = startDateOnly === endDateOnly ? `${startDateOnly} 00:00:00` : startDateOnly
     const endDateISO = startDateOnly === endDateOnly ? `${endDateOnly} 23:59:59` : endDateOnly
 
-    console.log('🌐 [LIVE-FILTERS] Fetching live clicks data for filter extraction...')
-    
-    // Fetch a larger sample of clicks to get comprehensive filter options
-    const clicksResponse = await api.getClicks({
-      start_date: startDateISO,
-      end_date: endDateISO,
-      include_duplicates: true,
-      row_limit: 1000, // Get more data for comprehensive filters
-      start_at_row: 1
-    })
+    console.log('🌐 [LIVE-FILTERS] Fetching live data for filter extraction...')
 
-    console.log('📥 [LIVE-FILTERS] Clicks response:', {
-      success: clicksResponse.success,
-      data_length: clicksResponse.data?.length || 0
-    })
+    // OPTIMIZATION: Reduced sample size for filter extraction
+    // We only need a small sample to get unique offer names and subIds
+    const [clicksResponse, conversionsResponse] = await Promise.all([
+      api.getClicks({
+        start_date: startDateISO,
+        end_date: endDateISO,
+        include_duplicates: true,
+        row_limit: 50, // Small sample sufficient for filter options
+        start_at_row: 1
+      }),
+      api.getConversions({
+        start_date: startDateISO,
+        end_date: endDateISO,
+        limit: 50, // Small sample sufficient for filter options
+        start_at_row: 1
+      })
+    ])
 
-    // Fetch conversions for additional filter options
-    console.log('🌐 [LIVE-FILTERS] Fetching live conversions data for filter extraction...')
-    const conversionsResponse = await api.getConversions({
-      start_date: startDateISO,
-      end_date: endDateISO,
-      limit: 1000,
-      start_at_row: 1
-    })
-
-    console.log('📥 [LIVE-FILTERS] Conversions response:', {
-      success: conversionsResponse.success,
-      data_length: conversionsResponse.data?.length || 0
+    console.log('📥 [LIVE-FILTERS] Responses received:', {
+      clicks: {
+        success: clicksResponse.success,
+        data_length: clicksResponse.data?.length || 0
+      },
+      conversions: {
+        success: conversionsResponse.success,
+        data_length: conversionsResponse.data?.length || 0
+      }
     })
 
     // Extract unique values from the live data
@@ -204,8 +205,8 @@ export async function POST(request: NextRequest) {
       sampleOfferNames: response.offerNames.slice(0, 3)
     })
 
-    // Cache the response for 5 minutes
-    apiCache.set(cacheKey, response, 5)
+    // Cache the response for 15 minutes (filter options don't change frequently)
+    persistentCache.set(cacheKey, response, 15)
 
     return NextResponse.json(response)
   } catch (error) {
