@@ -326,8 +326,9 @@ export function DashboardContent() {
       console.log(`⏱️ [PERFORMANCE] Dashboard loaded in ${(loadTime / 1000).toFixed(2)}s`)
 
       // Send performance metric to analytics if available
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'dashboard_load', {
+      if (typeof window !== 'undefined' && 'gtag' in window && typeof (window as { gtag?: unknown }).gtag === 'function') {
+        const gtag = (window as { gtag: (...args: unknown[]) => void }).gtag
+        gtag('event', 'dashboard_load', {
           load_time_ms: Math.round(loadTime),
           network_count: filters.networks.length,
           date_range_days: Math.ceil((filters.dateRange.to.getTime() - filters.dateRange.from.getTime()) / 86400000)
