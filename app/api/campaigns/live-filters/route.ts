@@ -30,18 +30,21 @@ export async function POST(request: NextRequest) {
     console.log('📅 [LIVE-FILTERS] Date range:', { startDate, endDate })
 
     // Check cache first (5 minute TTL for filter data)
-    const cacheKey = createCacheKey('live-filters', { 
-      userId: user.id, 
-      startDate, 
-      endDate, 
-      networks 
+    const cacheKey = createCacheKey('live-filters', {
+      userId: user.id,
+      startDate,
+      endDate,
+      networks
     })
-    
-    const cachedData = persistentCache.get<LiveFiltersResponse>(cacheKey)
-    if (cachedData) {
-      console.log('📋 [LIVE-FILTERS] Returning cached filter data')
-      return NextResponse.json(cachedData)
-    }
+
+    // TEMPORARILY DISABLED: Force fresh fetch to debug Sub ID 2 issue
+    // const cachedData = persistentCache.get<LiveFiltersResponse>(cacheKey)
+    // if (cachedData) {
+    //   console.log('📋 [LIVE-FILTERS] Returning cached filter data')
+    //   console.log('🔍 [CACHE-DEBUG] Cached subIds2:', cachedData.subIds2)
+    //   return NextResponse.json(cachedData)
+    // }
+    console.log('🔄 [LIVE-FILTERS] Cache DISABLED - forcing fresh fetch for debugging')
 
     console.log('🔍 [LIVE-FILTERS] Resolving network access...')
     const networkAccess = await resolveNetworkAccess(
@@ -92,9 +95,9 @@ export async function POST(request: NextRequest) {
 
     console.log('🌐 [LIVE-FILTERS] Fetching live data for filter extraction...')
 
-    // STRATEGY: Sample conversions from different time slices for better Sub ID coverage
-    // For long date ranges (30 days), first 500 conversions miss Sub IDs from later dates
-    // Solution: Fetch multiple smaller batches spread across the date range
+    // STRATEGY: Sequential sampling for complete Sub ID coverage
+    // ISSUE FIX: Previous gap-based sampling (rows 1-200, 501-700, 1001-1200) missed Sub IDs in gaps
+    // SOLUTION: Fetch first 600 conversions sequentially (rows 1-200, 201-400, 401-600)
     const [clicksResponse, conv1, conv2, conv3] = await Promise.all([
       api.getClicks({
         start_date: startDateISO,
@@ -103,26 +106,26 @@ export async function POST(request: NextRequest) {
         row_limit: 100,
         start_at_row: 1
       }),
-      // Batch 1: First 200 conversions
+      // Batch 1: First 200 conversions (rows 1-200)
       api.getConversions({
         start_date: startDateISO,
         end_date: endDateISO,
         limit: 200,
         start_at_row: 1
       }),
-      // Batch 2: Middle conversions (skip first 500)
+      // Batch 2: Next 200 conversions (rows 201-400) - NO GAP
       api.getConversions({
         start_date: startDateISO,
         end_date: endDateISO,
         limit: 200,
-        start_at_row: 501
+        start_at_row: 201
       }),
-      // Batch 3: Later conversions (skip first 1000)
+      // Batch 3: Next 200 conversions (rows 401-600) - NO GAP
       api.getConversions({
         start_date: startDateISO,
         end_date: endDateISO,
         limit: 200,
-        start_at_row: 1001
+        start_at_row: 401
       })
     ])
 
@@ -149,8 +152,25 @@ export async function POST(request: NextRequest) {
         batch1_length: conv1.data?.length || 0,
         batch2_length: conv2.data?.length || 0,
         batch3_length: conv3.data?.length || 0,
-        sampling_strategy: 'rows 1-200, 501-700, 1001-1200'
+        sampling_strategy: 'SEQUENTIAL: rows 1-200, 201-400, 401-600 (NO GAPS)'
       }
+    })
+
+    // DEBUG: Sub ID 2 extraction details
+    const batch1SubIds2 = new Set(conv1.data?.map(c => c.subid_2).filter(Boolean) || [])
+    const batch2SubIds2 = new Set(conv2.data?.map(c => c.subid_2).filter(Boolean) || [])
+    const batch3SubIds2 = new Set(conv3.data?.map(c => c.subid_2).filter(Boolean) || [])
+    const clicksSubIds2 = new Set(clicksResponse.data?.map(c => c.subid_2).filter(Boolean) || [])
+
+    console.log('🔍 [DEBUG] Sub ID 2 by source:', {
+      batch1_count: batch1SubIds2.size,
+      batch1_values: Array.from(batch1SubIds2).sort(),
+      batch2_count: batch2SubIds2.size,
+      batch2_values: Array.from(batch2SubIds2).sort(),
+      batch3_count: batch3SubIds2.size,
+      batch3_values: Array.from(batch3SubIds2).sort(),
+      clicks_count: clicksSubIds2.size,
+      clicks_values: Array.from(clicksSubIds2).sort()
     })
 
     // Extract unique values from the live data

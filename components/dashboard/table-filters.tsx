@@ -12,10 +12,10 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { 
-  Filter, 
-  X, 
-  Search, 
+import {
+  Filter,
+  X,
+  Search,
   ChevronDown,
   Tag,
   Hash,
@@ -23,7 +23,8 @@ import {
   RotateCcw,
   Sparkles,
   TrendingUp,
-  Eye
+  Eye,
+  Loader2
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -39,17 +40,29 @@ interface TableFiltersProps {
   availableOfferNames?: string[]
   availableSubIds?: string[]
   availableSubIds2?: string[]
+  isLoading?: boolean
 }
 
-export const TableFilters = React.memo(function TableFilters({ 
-  filters, 
-  onFiltersChange, 
+export const TableFilters = React.memo(function TableFilters({
+  filters,
+  onFiltersChange,
   availableOfferNames = [],
   availableSubIds = [],
-  availableSubIds2 = []
+  availableSubIds2 = [],
+  isLoading = false
 }: TableFiltersProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [quickSearch, setQuickSearch] = useState('')
+
+  // Debug: Log when dropdown data changes
+  React.useEffect(() => {
+    console.log('🔍 [TABLE-FILTERS] Available options updated:', {
+      offerNames: availableOfferNames.length,
+      subIds: availableSubIds.length,
+      subIds2: availableSubIds2.length,
+      isLoading
+    })
+  }, [availableOfferNames, availableSubIds, availableSubIds2, isLoading])
 
   const handleFilterChange = (key: keyof TableFiltersState, value: string) => {
     // Convert special values back to empty strings
@@ -231,9 +244,16 @@ export const TableFilters = React.memo(function TableFilters({
                         whileHover={{ scale: 1.01 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <Select value={filters.offerName || 'all'} onValueChange={(value) => handleFilterChange('offerName', value)}>
-                          <SelectTrigger className="bg-gradient-to-r from-neutral-800 to-neutral-700 border-neutral-600 text-neutral-200 hover:border-blue-500/50 transition-all duration-200 focus:ring-2 focus:ring-blue-500/20">
-                            <SelectValue placeholder="All Offers" />
+                        <Select value={filters.offerName || 'all'} onValueChange={(value) => handleFilterChange('offerName', value)} disabled={isLoading}>
+                          <SelectTrigger className="bg-gradient-to-r from-neutral-800 to-neutral-700 border-neutral-600 text-neutral-200 hover:border-blue-500/50 transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isLoading ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                                <span>Loading offers...</span>
+                              </div>
+                            ) : (
+                              <SelectValue placeholder="All Offers" />
+                            )}
                           </SelectTrigger>
                           <SelectContent className="bg-neutral-800 border-neutral-700 backdrop-blur-sm">
                             <SelectItem value="all" className="text-neutral-200 hover:bg-blue-500/10 focus:bg-blue-500/20">All Offers</SelectItem>
@@ -293,9 +313,16 @@ export const TableFilters = React.memo(function TableFilters({
                         whileHover={{ scale: 1.01 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <Select value={filters.subId ? (filters.subId === '' ? 'empty' : filters.subId) : 'all'} onValueChange={(value) => handleFilterChange('subId', value)}>
-                          <SelectTrigger className="bg-gradient-to-r from-neutral-800 to-neutral-700 border-neutral-600 text-neutral-200 hover:border-green-500/50 transition-all duration-200 focus:ring-2 focus:ring-green-500/20">
-                            <SelectValue placeholder="All Sub IDs" />
+                        <Select value={filters.subId ? (filters.subId === '' ? 'empty' : filters.subId) : 'all'} onValueChange={(value) => handleFilterChange('subId', value)} disabled={isLoading}>
+                          <SelectTrigger className="bg-gradient-to-r from-neutral-800 to-neutral-700 border-neutral-600 text-neutral-200 hover:border-green-500/50 transition-all duration-200 focus:ring-2 focus:ring-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isLoading ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin text-green-400" />
+                                <span>Loading Sub IDs...</span>
+                              </div>
+                            ) : (
+                              <SelectValue placeholder="All Sub IDs" />
+                            )}
                           </SelectTrigger>
                           <SelectContent className="bg-neutral-800 border-neutral-700 backdrop-blur-sm">
                             <SelectItem value="all" className="text-neutral-200 hover:bg-green-500/10 focus:bg-green-500/20">All Sub IDs</SelectItem>
@@ -355,9 +382,16 @@ export const TableFilters = React.memo(function TableFilters({
                         whileHover={{ scale: 1.01 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <Select value={filters.subId2 ? (filters.subId2 === '' ? 'empty' : filters.subId2) : 'all'} onValueChange={(value) => handleFilterChange('subId2', value)}>
-                          <SelectTrigger className="bg-gradient-to-r from-neutral-800 to-neutral-700 border-neutral-600 text-neutral-200 hover:border-purple-500/50 transition-all duration-200 focus:ring-2 focus:ring-purple-500/20">
-                            <SelectValue placeholder="All Sub ID 2s" />
+                        <Select value={filters.subId2 ? (filters.subId2 === '' ? 'empty' : filters.subId2) : 'all'} onValueChange={(value) => handleFilterChange('subId2', value)} disabled={isLoading}>
+                          <SelectTrigger className="bg-gradient-to-r from-neutral-800 to-neutral-700 border-neutral-600 text-neutral-200 hover:border-purple-500/50 transition-all duration-200 focus:ring-2 focus:ring-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isLoading ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                                <span>Loading Sub ID 2s...</span>
+                              </div>
+                            ) : (
+                              <SelectValue placeholder="All Sub ID 2s" />
+                            )}
                           </SelectTrigger>
                           <SelectContent className="bg-neutral-800 border-neutral-700 backdrop-blur-sm">
                             <SelectItem value="all" className="text-neutral-200 hover:bg-purple-500/10 focus:bg-purple-500/20">All Sub ID 2s</SelectItem>
@@ -472,4 +506,33 @@ export const TableFilters = React.memo(function TableFilters({
       </Card>
     </motion.div>
   )
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Return true if props are equal (skip re-render), false if different (re-render)
+
+  // Always re-render if loading state changes
+  if (prevProps.isLoading !== nextProps.isLoading) {
+    return false
+  }
+
+  // Check if filter state changed
+  if (
+    prevProps.filters.offerName !== nextProps.filters.offerName ||
+    prevProps.filters.subId !== nextProps.filters.subId ||
+    prevProps.filters.subId2 !== nextProps.filters.subId2
+  ) {
+    return false
+  }
+
+  // Check if available options arrays changed (length or content)
+  if (
+    prevProps.availableOfferNames?.length !== nextProps.availableOfferNames?.length ||
+    prevProps.availableSubIds?.length !== nextProps.availableSubIds?.length ||
+    prevProps.availableSubIds2?.length !== nextProps.availableSubIds2?.length
+  ) {
+    return false
+  }
+
+  // All props are equal - skip re-render
+  return true
 })

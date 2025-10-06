@@ -88,6 +88,7 @@ export function DashboardContent() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isTableLoading, setIsTableLoading] = useState(false)
+  const [isFiltersLoading, setIsFiltersLoading] = useState(false)
   const [isNetworkLoading, setIsNetworkLoading] = useState(true)
   const [networkError, setNetworkError] = useState<string | null>(null)
   // Available filter options
@@ -178,6 +179,7 @@ export function DashboardContent() {
 
     setIsLoading(true)
     setIsTableLoading(true)
+    setIsFiltersLoading(true)
 
     const startTime = performance.now()
     console.log('⏱️ [PERFORMANCE] Starting dashboard data fetch...')
@@ -290,12 +292,12 @@ export function DashboardContent() {
         setAvailableOffers(liveFiltersData.campaigns || [])
         setAvailableSubIds(liveFiltersData.subIds || [])
 
-        // Set table filter options
+        // Set table filter options - IMPORTANT: Create new array references to trigger React re-renders
         const offerNames = liveFiltersData.offerNames ||
           liveFiltersData.campaigns?.map((c: { name: string }) => c.name).filter(Boolean) as string[] || []
         setAvailableOfferNames([...new Set(offerNames)])
-        setAvailableTableSubIds(liveFiltersData.subIds1 || liveFiltersData.subIds || [])
-        setAvailableTableSubIds2(liveFiltersData.subIds2 || [])
+        setAvailableTableSubIds([...(liveFiltersData.subIds1 || liveFiltersData.subIds || [])])
+        setAvailableTableSubIds2([...(liveFiltersData.subIds2 || [])])
 
         console.log('🎯 [FRONTEND] Filter options loaded:', {
           offers: liveFiltersData.campaigns?.length || 0,
@@ -314,13 +316,18 @@ export function DashboardContent() {
         setAvailableTableSubIds2([])
       }
 
+      // Mark filters as loaded
+      setIsFiltersLoading(false)
+
     } catch (error) {
       console.error('❌ [DASHBOARD] Error fetching dashboard data:', error)
       setIsLoading(false)
       setIsTableLoading(false)
+      setIsFiltersLoading(false)
     } finally {
       // Table loading done
       setIsTableLoading(false)
+      setIsFiltersLoading(false)
 
       const loadTime = performance.now() - startTime
       console.log(`⏱️ [PERFORMANCE] Dashboard loaded in ${(loadTime / 1000).toFixed(2)}s`)
@@ -354,7 +361,6 @@ export function DashboardContent() {
     if (filters.networks && filters.networks.length > 0) {
       fetchData()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData, networkKey, dateRangeKey, filters.networks, tableFilters.offerName, tableFilters.subId, tableFilters.subId2])
 
   return (
@@ -407,6 +413,7 @@ export function DashboardContent() {
                 availableOfferNames={availableOfferNames}
                 availableSubIds={availableTableSubIds}
                 availableSubIds2={availableTableSubIds2}
+                isLoading={isFiltersLoading}
               />
 
               {/* Data Tables */}
