@@ -21,7 +21,8 @@ function LoginPageContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
   const message = searchParams.get('message')
-  const [isSignUp, setIsSignUp] = useState(false)
+  const signupParam = searchParams.get('signup')
+  const [isSignUp, setIsSignUp] = useState(signupParam === 'true')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
@@ -67,7 +68,7 @@ function LoginPageContent() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-neutral-50">
-            Campaigns Insight
+            Revbeam
           </h1>
           <p className="mt-2 text-neutral-300">
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
@@ -155,7 +156,7 @@ function LoginPageFallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8 text-center">
-        <h1 className="text-3xl font-bold text-neutral-50">Campaigns Insight</h1>
+        <h1 className="text-3xl font-bold text-neutral-50">Revbeam</h1>
         <p className="text-neutral-300">Loading sign-in experience…</p>
         <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
       </div>

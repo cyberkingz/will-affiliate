@@ -4,6 +4,6 @@ import RevbeamLandingPage, {
 
 export const metadata = landingMetadata
 
-export default function Home() {
+export default function MillianLandingPage() {
   return <RevbeamLandingPage />
 }

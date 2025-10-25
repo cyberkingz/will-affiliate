@@ -37,7 +37,7 @@ To see the team management interface in action:
 Click "Add User" to experience:
 - **Step 1 - Basic Info**: Name, email, welcome email options
 - **Step 2 - Role Selection**: Choose from Administrator, Manager, Analyst, User
-- **Step 3 - Network Access**: Select Affluent, CranAds networks
+- **Step 3 - Network Access**: Select Affluent, Revbeam Platform networks
 - **Step 4 - Additional Permissions**: Fine-tune beyond role defaults
 - **Step 5 - Review**: Confirm all settings before creation
 
